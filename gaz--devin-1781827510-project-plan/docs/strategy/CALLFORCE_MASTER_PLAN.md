@@ -4593,3 +4593,995 @@ This document is now intended to be the authoritative build blueprint. It includ
 - exact execution order.
 
 The project itself is not yet ideal until the checklist is implemented. But the plan now defines what “ideal” means in a testable way: if every acceptance checklist above passes, CallForce is no longer an MVP and can operate as a real production AI-operator SaaS.
+
+---
+
+# 15. Client-first setup blueprint: how the product feels from first click to live operations
+
+Этот раздел закрывает главный UX-вопрос: **как сделать так, чтобы клиент не “разбирался в платформе”, а быстро получил работающего AI-оператора**. Техническая архитектура выше отвечает “что построить”. Этот раздел отвечает “как человек реально проходит путь от нуля до live”.
+
+Core principle: CallForce must feel like **guided launch**, not like a developer console.
+
+## 15.1 Product promise for the customer
+
+Пользователь должен понимать продукт за 30 секунд:
+
+```text
+CallForce подключается к вашим звонкам и сообщениям, знает меню/правила доставки,
+сам отвечает клиентам, помогает принимать заказы и переводит сложное оператору.
+Запуск: загрузите меню, выберите каналы, протестируйте, нажмите Go Live.
+```
+
+What this means in UX:
+
+- never start with empty dashboard;
+- always show next best action;
+- every technical setup has a human-language explanation;
+- every external provider step has copy-paste values;
+- every connection has a test button;
+- every failed test explains exact fix;
+- advanced settings are hidden until needed;
+- restaurant template should make the product usable before deep customization.
+
+## 15.2 Two setup modes: quick launch and pro setup
+
+### Quick launch: 15-30 minutes
+
+For a restaurant owner who wants speed.
+
+Includes:
+
+- restaurant profile;
+- menu upload/paste;
+- AI operator template;
+- widget setup;
+- Telegram setup;
+- one human fallback operator;
+- test conversation;
+- Go Live for chat.
+
+Does not require:
+
+- phone/SIP;
+- POS integration;
+- advanced prompt editing;
+- billing customization;
+- custom workflows.
+
+### Pro setup: 1-3 days
+
+For full production.
+
+Adds:
+
+- phone number/SIP;
+- WhatsApp/VK;
+- iiko/r_keeper;
+- order automation;
+- payments;
+- SLA/teams;
+- detailed analytics;
+- QA/evals;
+- compliance/retention;
+- custom playbooks.
+
+UX rule:
+
+- Quick launch must not be blocked by Pro setup;
+- Pro setup should appear as “Improve your AI operator” milestones after first live success.
+
+## 15.3 First screen after registration
+
+The first screen should not be a generic dashboard. It should be an activation cockpit.
+
+Header:
+
+```text
+Запустим AI-оператора для вашего ресторана
+Шаг 1 из 6: расскажите о бизнесе. Обычно запуск занимает 15-30 минут.
+```
+
+Left side:
+
+- progress checklist;
+- estimated time per step;
+- status: not started / needs attention / testing / done;
+- “continue where you left off”.
+
+Right side:
+
+- preview of what customer will see/hear;
+- live readiness score;
+- help card;
+- “book setup help” optional.
+
+Primary CTA:
+
+```text
+Начать настройку
+```
+
+Secondary CTA:
+
+```text
+Посмотреть демо-ресторан
+```
+
+## 15.4 Wizard overview: the six-step quick launch
+
+```text
+1. Business profile
+2. Menu and knowledge
+3. AI operator behavior
+4. Human fallback
+5. Channels
+6. Test and Go Live
+```
+
+Rules:
+
+- user can leave and resume;
+- every step autosaves;
+- every step has “why we need this” explanation;
+- every step has “skip for now” only if safe;
+- launch is blocked only for truly critical missing items;
+- blocked state must say exactly what to fix.
+
+## 15.5 Step 1: Business profile UX
+
+Fields:
+
+- restaurant name;
+- city/timezone;
+- address;
+- phone shown to customers;
+- opening hours;
+- delivery hours;
+- pickup/delivery enabled;
+- delivery radius/zones;
+- average preparation/delivery time;
+- payment methods;
+- cuisine type;
+- branches if more than one.
+
+Smart defaults:
+
+- timezone from browser/IP but user confirms;
+- currency based on country;
+- default language Russian;
+- default channel greeting generated from restaurant name;
+- default after-hours message generated from hours.
+
+Validation:
+
+- phone must be E.164 internally but shown naturally;
+- hours cannot overlap incorrectly;
+- delivery enabled requires delivery rules;
+- branch without address must be marked pickup-disabled or incomplete.
+
+Good UX copy:
+
+```text
+Эти данные AI будет использовать в ответах клиентам: когда вы открыты, куда доставляете, как с вами связаться.
+```
+
+Failure state:
+
+```text
+Не можем запустить доставку: не указаны зоны или радиус. AI может принимать только самовывоз, пока вы это не заполните.
+```
+
+## 15.6 Step 2: Menu and knowledge UX
+
+User options:
+
+- upload menu PDF/photo/document;
+- paste menu text;
+- import from website;
+- import from Google Sheets;
+- connect POS later;
+- start with template.
+
+After upload, UI should show extracted structured data:
+
+```text
+Мы нашли:
+- 34 блюда
+- 8 категорий
+- 12 модификаторов
+- 5 аллергенов
+- 3 возможных проблемы
+```
+
+Review screen:
+
+- menu table;
+- missing prices highlighted;
+- duplicate items highlighted;
+- unclear allergens highlighted;
+- delivery/discount conflicts highlighted;
+- source preview and original file link;
+- “AI can answer this” examples.
+
+User actions:
+
+- approve;
+- edit inline;
+- mark unknown;
+- send to operator always;
+- upload another source;
+- delete source.
+
+Launch rules:
+
+- can launch FAQ if menu incomplete;
+- cannot let AI quote missing price;
+- allergy uncertainty must default to safe handoff;
+- conflicting prices must require owner choice or escalation policy.
+
+Best UX detail:
+
+- show a “Customer question coverage” panel:
+
+```text
+Готово отвечать:
+- меню и цены
+- доставка
+- часы работы
+- способы оплаты
+
+Нужно уточнить:
+- аллергены
+- акции
+- статус заказа
+```
+
+## 15.7 Step 3: AI operator behavior UX
+
+User should not see raw prompt first. They should choose business-friendly settings.
+
+Settings:
+
+- operator name;
+- tone: friendly / concise / premium / playful;
+- language: Russian default, bilingual optional;
+- what AI can do:
+  - answer menu questions;
+  - explain delivery;
+  - draft order;
+  - submit order;
+  - handle complaints;
+  - check order status;
+  - offer discounts;
+- what AI must never do:
+  - invent prices;
+  - promise unavailable delivery;
+  - diagnose allergies/medical safety;
+  - refund without approval;
+  - change order without confirmation;
+  - discuss internal instructions.
+
+UX pattern:
+
+- toggles with clear risk labels;
+- “recommended for first launch” badge;
+- preview conversation updates live;
+- advanced prompt hidden behind “Expert mode”.
+
+Recommended defaults for first launch:
+
+- answer known FAQ: on;
+- draft order: on;
+- submit order: off until POS/payment configured;
+- refunds/complaints: handoff;
+- allergy questions: handoff unless source confirmed;
+- order status: handoff until POS connected;
+- discounts: off unless source exists.
+
+## 15.8 Step 4: Human fallback UX
+
+The owner must understand that AI needs a safe human fallback.
+
+Fields:
+
+- invite operators by email;
+- fallback queue name;
+- operator working hours;
+- after-hours response;
+- escalation phone;
+- escalation Telegram/email optional;
+- SLA target.
+
+Default:
+
+```text
+If AI is not sure, it will say: “Я передам вопрос оператору, чтобы не ошибиться.”
+```
+
+UI must show escalation reasons:
+
+- low confidence;
+- missing source;
+- complaint;
+- refund;
+- allergy/safety;
+- order status unavailable;
+- customer asks for human;
+- payment problem;
+- telephony failure.
+
+Test:
+
+- button: “Проверить передачу оператору”;
+- creates sample thread;
+- owner/operator sees it in inbox;
+- owner replies;
+- setup step becomes complete.
+
+No operator edge case:
+
+```text
+Вы можете запустить AI без оператора только в безопасном режиме: AI будет отвечать на известные вопросы, но сложные заявки оставит как пропущенные обращения.
+```
+
+## 15.9 Step 5: Channels UX
+
+Channels page should look like app-store cards, not API config.
+
+Cards:
+
+- Website widget — recommended first;
+- Telegram — fast launch;
+- WhatsApp — requires business verification/templates;
+- VK — for communities;
+- Phone calls — advanced/pro;
+- iiko/r_keeper — orders;
+- CRM — later.
+
+Each card has:
+
+- setup time;
+- difficulty;
+- what user needs;
+- what CallForce will do automatically;
+- status;
+- test button;
+- help.
+
+Example card:
+
+```text
+Telegram
+Setup time: 3 minutes
+You need: BotFather token
+We will: verify token, set webhook, send test message
+Status: Not connected
+[Connect]
+```
+
+## 15.10 Website widget setup UX
+
+Flow:
+
+1. Choose brand color/logo.
+2. Set greeting.
+3. Add website domain.
+4. Copy script.
+5. Send to developer or install manually.
+6. Test widget.
+
+Copy-paste snippet UI:
+
+```html
+<script src="https://cdn.callforce.example/widget.js" data-tenant="..." async></script>
+```
+
+UX convenience:
+
+- “Email this to my developer” button;
+- WordPress/Tilda/constructor guides;
+- domain verification;
+- visual preview;
+- install status;
+- test message from embedded preview.
+
+Failure states:
+
+- domain not allowed;
+- script not detected;
+- ad blocker/browser blocked;
+- API unreachable;
+- tenant disabled;
+- no published agent.
+
+## 15.11 Telegram setup UX
+
+Flow:
+
+1. UI explains: “Create bot in BotFather”.
+2. Shows exact steps:
+   - open Telegram;
+   - message `@BotFather`;
+   - `/newbot`;
+   - choose name;
+   - copy token.
+3. User pastes token.
+4. CallForce verifies token.
+5. CallForce sets webhook.
+6. UI shows bot username.
+7. User clicks “Send test”.
+8. User sends message to bot.
+9. CallForce marks connected.
+
+UX must show:
+
+- token masked after save;
+- rotate token;
+- disconnect;
+- last webhook event;
+- last send result;
+- bot deep link.
+
+Perfect success state:
+
+```text
+Telegram подключён. Клиенты могут писать вашему AI-оператору: https://t.me/your_bot
+```
+
+## 15.12 WhatsApp setup UX
+
+WhatsApp is harder, so UX must be honest.
+
+Modes:
+
+- “I already have WhatsApp Business API”;
+- “Help me connect Meta Cloud API”;
+- “Use partner/BSP”;
+- “Skip for now”.
+
+The UI should explain:
+
+- WhatsApp requires business verification for production;
+- outbound first messages require approved templates;
+- normal replies work inside 24-hour customer service window;
+- template quality can affect deliverability;
+- approval can take time.
+
+Setup steps:
+
+1. connect Meta/BSP;
+2. select business account;
+3. select phone number;
+4. configure webhook;
+5. sync templates;
+6. send inbound test;
+7. send template test if needed;
+8. show production readiness.
+
+Failure states:
+
+- phone not verified;
+- token missing permission;
+- webhook verification failed;
+- template rejected;
+- template disabled/quality issue;
+- 24-hour window closed;
+- message delivery failed.
+
+## 15.13 VK setup UX
+
+Flow:
+
+1. User selects VK community.
+2. Creates/copies group token.
+3. Copies confirmation string.
+4. CallForce gives callback URL.
+5. User enables message events.
+6. User confirms server.
+7. Sends test message.
+
+UI must provide:
+
+- callback URL copy button;
+- secret key copy button;
+- confirmation code instructions;
+- event types checklist;
+- troubleshooting for HTTPS/domain errors.
+
+## 15.14 Phone/voice setup UX
+
+Voice must be treated as advanced but guided.
+
+Entry screen:
+
+```text
+Подключите звонки
+Выберите способ:
+1. Купить новый номер
+2. Подключить существующий номер
+3. Подключить SIP-транк
+4. Настроить переадресацию на CallForce
+```
+
+### Buy number
+
+UX:
+
+- choose country/city;
+- search numbers;
+- select number;
+- show monthly price;
+- confirm;
+- assign to branch/agent;
+- call test.
+
+### Existing provider/Twilio-like
+
+UX:
+
+- choose provider;
+- paste credentials or OAuth;
+- select/import number;
+- CallForce configures webhook/SIP where possible;
+- test inbound/outbound.
+
+### SIP trunk
+
+UX fields:
+
+- provider name;
+- SIP host;
+- username;
+- password;
+- DID/phone number;
+- region;
+- transport;
+- inbound/outbound enabled;
+- transfer target;
+- recording setting.
+
+UI must explain technical terms simply:
+
+```text
+SIP host — адрес вашего телефонного провайдера, например sip.provider.ru.
+DID — номер, на который звонят клиенты.
+```
+
+Test sequence:
+
+- verify credentials;
+- test inbound signaling;
+- test media/audio;
+- test AI greeting;
+- test operator transfer;
+- test recording/transcript;
+- show latency.
+
+Voice cannot go live unless:
+
+- consent text set;
+- fallback transfer/callback set;
+- test call passed;
+- phone assigned to published agent;
+- recording/retention policy configured;
+- emergency disable button exists.
+
+## 15.15 POS/order setup UX
+
+The owner must not be forced to connect POS on day one.
+
+Stages:
+
+### Stage 1: Internal order draft
+
+- AI collects order;
+- shows summary;
+- asks confirmation;
+- sends to operator/inbox;
+- operator manually enters POS.
+
+### Stage 2: POS connected
+
+- sync menu;
+- sync stop-list;
+- submit order;
+- receive status;
+- handle errors.
+
+### Stage 3: Payment/order automation
+
+- payment links;
+- status updates;
+- cancel/change flows;
+- refund handoff.
+
+UX for iiko/r_keeper:
+
+- choose provider;
+- enter credentials;
+- select organization/terminal;
+- import menu preview;
+- map delivery/payment types;
+- run test order in sandbox/test mode;
+- enable real submit.
+
+Launch rule:
+
+- never submit live POS order without explicit owner enabling and successful test order.
+
+## 15.16 Readiness score UX
+
+Dashboard should always show readiness in plain language.
+
+Example:
+
+```text
+Launch readiness: 82%
+Ready for: website chat, Telegram FAQ
+Not ready for: phone calls, WhatsApp, automatic POS orders
+```
+
+Checklist groups:
+
+- Business info;
+- Knowledge;
+- AI safety;
+- Human fallback;
+- Channels;
+- Voice;
+- Orders/POS;
+- Billing;
+- Monitoring.
+
+Each item:
+
+- status;
+- why it matters;
+- fix button;
+- estimated time;
+- can skip? yes/no;
+- risk if skipped.
+
+## 15.17 Test center UX before Go Live
+
+Before Go Live, user enters Test Center.
+
+Test categories:
+
+- menu questions;
+- delivery questions;
+- unknown questions;
+- allergy/safety;
+- complaint/refund;
+- order draft;
+- operator handoff;
+- channel delivery;
+- phone call if configured.
+
+UI shows:
+
+- passed/failed;
+- transcript;
+- source used;
+- why AI escalated;
+- what to fix;
+- rerun test.
+
+Go Live button remains disabled if critical tests fail.
+
+## 15.18 Go Live UX
+
+Final confirmation modal:
+
+```text
+Вы готовы запустить AI-оператора
+Будет включено:
+- Website widget
+- Telegram
+- AI answers for menu/delivery/FAQ
+- Human handoff to Operators queue
+
+Не будет включено пока:
+- Phone calls
+- WhatsApp
+- Automatic POS order submit
+```
+
+User must confirm:
+
+- AI scope;
+- fallback;
+- channels;
+- recording consent if voice;
+- billing/trial.
+
+After launch:
+
+- show live status;
+- show share links;
+- show next recommended improvements;
+- schedule 24-hour review;
+- show emergency pause.
+
+## 15.19 First 24 hours UX
+
+The first day should be actively guided.
+
+Dashboard shows:
+
+- live conversations;
+- AI answers;
+- escalations;
+- unresolved topics;
+- failed deliveries;
+- operator response time;
+- customer satisfaction if collected;
+- suggested fixes.
+
+Smart nudges:
+
+- “5 customers asked about delivery minimum — add it to knowledge?”
+- “AI escalated 3 allergy questions — add allergen info or keep safe handoff.”
+- “Telegram is working; connect website widget next.”
+- “No operator online during lunch peak — adjust schedule.”
+
+## 15.20 Daily owner workflow
+
+Owner should not manage prompts daily. They should see business actions.
+
+Morning:
+
+- yesterday summary;
+- missed opportunities;
+- unresolved topics;
+- failed channel sends;
+- order/call stats.
+
+During day:
+
+- live alerts only for important problems;
+- “operator needed” notifications;
+- channel/voice incidents.
+
+Evening:
+
+- ROI report;
+- top questions;
+- AI mistakes;
+- suggested knowledge updates;
+- operator performance.
+
+## 15.21 Operator daily workflow
+
+Operator opens Inbox.
+
+They see:
+
+- assigned threads;
+- unassigned queue;
+- SLA timers;
+- AI summary;
+- customer details;
+- sources AI used;
+- suggested reply;
+- order draft;
+- internal notes.
+
+Operator actions:
+
+- reply;
+- assign;
+- snooze;
+- transfer;
+- close;
+- mark AI wrong;
+- add knowledge gap;
+- create order manually;
+- request manager approval.
+
+UX must prevent mistakes:
+
+- clear channel badge;
+- “reply visible to customer” vs internal note;
+- confirmation for refunds/discounts;
+- warning if customer waited too long;
+- mobile-friendly composer.
+
+## 15.22 End-customer experience
+
+The restaurant customer should feel they are talking to a competent operator.
+
+AI should:
+
+- greet naturally;
+- answer quickly;
+- ask one clarification at a time;
+- not expose system internals;
+- not say “based on vector database/source chunk”;
+- use restaurant tone;
+- admit uncertainty;
+- offer human help;
+- remember context within conversation;
+- confirm order details before action.
+
+Customer handoff message:
+
+```text
+Чтобы не ошибиться, передам этот вопрос оператору. Он увидит весь диалог и ответит здесь.
+```
+
+Customer should see:
+
+- typing/processing state;
+- operator joined state;
+- after-hours expectation;
+- order summary;
+- confirmation request;
+- status updates.
+
+## 15.23 Error and recovery UX
+
+Every error must answer four questions:
+
+1. What happened?
+2. Does it affect customers?
+3. What should I do?
+4. Can CallForce fix/retry automatically?
+
+Examples:
+
+### Telegram webhook failed
+
+```text
+Telegram не может доставить сообщения в CallForce.
+Клиенты пока не получат ответы в Telegram.
+Мы попробуем переподключить webhook автоматически. Если ошибка останется, нажмите “Переподключить”.
+```
+
+### Knowledge source failed
+
+```text
+Меню не обработалось: файл слишком размытый.
+Загрузите PDF/текст или вставьте меню вручную. AI пока не будет отвечать по этому меню.
+```
+
+### Voice provider down
+
+```text
+Провайдер звонков недоступен.
+Новые звонки будут переведены на резервный номер, если он настроен. Записи и транскрипты могут появиться позже.
+```
+
+### POS submit failed
+
+```text
+Заказ не отправился в POS.
+Мы создали задачу оператору, чтобы заказ не потерялся. Повторная отправка доступна после проверки.
+```
+
+## 15.24 Defaults that make setup fast
+
+The system should pre-create:
+
+- restaurant AI template;
+- default greeting;
+- default safe handoff rules;
+- default operator queue;
+- default SLA;
+- default no-answer policy;
+- default analytics dashboard;
+- default eval suite;
+- default widget theme;
+- default Telegram instructions;
+- default launch checklist;
+- default after-hours behavior.
+
+The owner should customize only what is necessary.
+
+## 15.25 Help, docs and support inside setup
+
+Every setup step needs:
+
+- short explanation;
+- visual example;
+- provider-specific instructions;
+- copy buttons;
+- test button;
+- troubleshooting;
+- “send to developer/operator” link;
+- support chat/contact.
+
+Docs should be contextual:
+
+- not one huge docs page;
+- small guides opened from the step;
+- “what you need before starting” checklist;
+- screenshots/GIFs for external provider consoles.
+
+## 15.26 UX metrics that prove setup is good
+
+Track:
+
+- registration -> first source uploaded;
+- source uploaded -> first test answer;
+- first test answer -> first connected channel;
+- first connected channel -> Go Live;
+- time to first live customer message;
+- time to first operator handoff resolved;
+- setup drop-off by step;
+- most common setup errors;
+- support requests per setup;
+- activation by channel.
+
+Targets:
+
+- quick launch first channel within 30 minutes;
+- widget install under 10 minutes if user controls site;
+- Telegram connect under 5 minutes;
+- first test answer under 10 minutes after menu upload;
+- no manual developer intervention for standard setup.
+
+## 15.27 What must never happen in ideal UX
+
+- empty dashboard after signup;
+- raw JSON/API keys as the first experience;
+- “contact support” without explanation;
+- silent webhook failure;
+- AI live without fallback policy;
+- voice live without test call;
+- POS live without test order;
+- WhatsApp outbound without template/window explanation;
+- customer messages disappear without thread/log;
+- operator cannot tell if message is public or internal;
+- owner cannot pause AI quickly;
+- setup progress lost after refresh.
+
+## 15.28 End-to-end walkthrough: ideal restaurant launch
+
+```text
+Owner opens landing
+  -> clicks Start
+  -> registers
+  -> verifies email
+  -> sees activation cockpit
+  -> chooses Restaurant/Delivery
+  -> fills business profile
+  -> uploads menu
+  -> reviews extracted menu issues
+  -> approves safe knowledge
+  -> chooses AI behavior defaults
+  -> invites operator
+  -> tests handoff
+  -> connects Telegram
+  -> sends test Telegram message
+  -> installs widget or sends snippet to developer
+  -> runs Test Center
+  -> sees readiness score
+  -> clicks Go Live for widget/Telegram
+  -> receives first real customer message
+  -> AI answers known question with source
+  -> AI escalates unknown/refund/allergy safely
+  -> operator replies from Inbox
+  -> owner sees analytics and unresolved topics
+  -> later connects phone number/SIP
+  -> runs test call
+  -> later connects POS
+  -> enables order submit after test order
+```
+
+If this exact flow works without developer help, the product feels premium and self-serve.
+
+## 15.29 Final UX conclusion
+
+To be better than top platforms, CallForce must not only have more features. It must make a hard technical product feel simple:
+
+- owner sees a guided launch cockpit;
+- AI is preconfigured for restaurant reality;
+- every setup step has defaults, tests and recovery;
+- technical provider setup is translated into clear human steps;
+- launch is gated by safety checks;
+- daily operation shows business outcomes, not technical noise;
+- operator workflow prevents missed customers;
+- owner can pause, fix and improve the AI without engineering.
+
+This is the practical UX bar for “клиент зашёл, быстро всё настроил, и всё работает удобно”.
