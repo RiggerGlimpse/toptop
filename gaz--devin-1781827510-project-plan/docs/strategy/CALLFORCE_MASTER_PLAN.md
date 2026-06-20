@@ -1781,3 +1781,864 @@ The fastest path to a sellable product:
 10. **Observability/security/deploy hardening** — scale safely.
 
 If only one next thing can be built, build **Operator Inbox v1**. It turns AI failure into a controlled business process, which is required before real channels and voice can be trusted.
+
+---
+
+# 12. June 2026 deep competitor teardown and missing logic map
+
+Этот раздел отвечает на вопрос: “точно ли мы учли всю логику, чтобы сделать лучший проект в мире?” Ответ: после дополнительного анализа нужно расширить план ещё сильнее. Лучшие платформы в 2026 году продают не просто chat/voice bot, а **Agent Operating System**: build -> simulate -> deploy -> monitor -> coach -> improve, with omnichannel memory, workflow/action governance, human workforce integration and measurable outcomes.
+
+## 12.1 Источники benchmark, которые нужно держать в голове
+
+Паттерны, которые нужно повторить или превзойти:
+
+- Sierra Agent SDK / Agent Studio:
+  - goals and guardrails;
+  - composable skills;
+  - workflows/journeys;
+  - simulations;
+  - traces of decisions/tool calls/responses;
+  - real-time knowledge;
+  - secure actions;
+  - contact-center handoff with generated summary.
+- Decagon:
+  - Agent Operating Procedures in natural language;
+  - build/optimize/scale lifecycle;
+  - omnichannel chat/voice/email;
+  - observability, experimentation, audit logging, proactive gap identification;
+  - insights and reporting tied to business outcomes.
+- PolyAI:
+  - voice/chat platform;
+  - test environments before production;
+  - Git/native developer workflow;
+  - handoff destinations;
+  - SIP headers and handoff API for context;
+  - QA analytics and large-scale conversation review.
+- Parloa:
+  - design/test/deploy/improve lifecycle;
+  - simulations, evaluations, runtime guardrails;
+  - natural low-latency conversations;
+  - regulated environment compliance;
+  - real-time performance, containment, sentiment and anomaly insights.
+- Salesforce Agentforce:
+  - subagents;
+  - actions;
+  - instructions;
+  - grounding in CRM/knowledge data;
+  - human handoff;
+  - trust layer.
+- Ada:
+  - unified reasoning engine;
+  - conversation hub across channels;
+  - performance center;
+  - playbooks;
+  - action performance reports;
+  - knowledge gap reports;
+  - coaching loop.
+- Genesys/NICE/Talkdesk:
+  - agent assist;
+  - real-time transcription;
+  - next-best action;
+  - routing;
+  - workforce/performance management;
+  - quality management scoring every interaction;
+  - speech/text analytics;
+  - topic spotting;
+  - supervisor coaching.
+- Bland/Vapi/Retell/ElevenLabs:
+  - low-latency voice;
+  - telephony portability;
+  - warm/cold transfer;
+  - tool/function calling;
+  - post-call analysis;
+  - monitoring by provider/tool/latency issue;
+  - agent-to-agent transfer;
+  - knowledge base attached to voice agents.
+
+## 12.2 Главный недостающий концепт: CallForce Agent OS
+
+CallForce должен стать не набором endpoints, а операционной системой для AI-операторов.
+
+### Agent OS layers
+
+```text
+Tenant/business configuration
+  -> Agent definitions
+  -> Skills/subagents/playbooks
+  -> Knowledge and guidance
+  -> Tools/actions and permissions
+  -> Channel adapters
+  -> Runtime orchestrator
+  -> Human workforce/inbox
+  -> QA/eval lab
+  -> Monitoring/analytics
+  -> Billing/compliance/governance
+```
+
+### Agent OS must support two creation modes
+
+1. **No-code Agent Studio** for business/admin/operator:
+   - describe role;
+   - select vertical preset;
+   - import SOP/menu/FAQ;
+   - define handoff rules;
+   - connect channels;
+   - run simulations;
+   - publish.
+2. **Developer SDK / config-as-code**:
+   - agent config in versioned JSON/YAML;
+   - playbooks/workflows as code;
+   - test suites in repo;
+   - promotion from draft -> staging -> production;
+   - traces and evals tied to commit/version.
+
+### Agent OS versioning
+
+Every production answer must be traceable to:
+
+- agent version;
+- prompt version;
+- playbook version;
+- model config version;
+- knowledge snapshot version;
+- action schema version;
+- channel adapter version;
+- eval run before publish;
+- release author;
+- release timestamp.
+
+Without this, impossible to debug “почему AI так ответил”.
+
+## 12.3 Missing logic: subagents and specialist routing
+
+Current plan mentions agents, but world-class platforms increasingly use specialized subagents. CallForce needs:
+
+### Subagent types for restaurant vertical
+
+- `RestaurantGreeterSubagent`
+  - identifies intent;
+  - handles greetings;
+  - asks clarifying questions.
+- `MenuExpertSubagent`
+  - menu, ingredients, allergens, recommendations;
+  - never invents price/availability.
+- `DeliveryPolicySubagent`
+  - delivery zones, minimum order, timing, fees.
+- `OrderBuilderSubagent`
+  - collects order draft;
+  - validates required fields;
+  - requests explicit confirmation.
+- `OrderStatusSubagent`
+  - reads POS/CRM status only;
+  - no source/action result -> handoff.
+- `ComplaintSubagent`
+  - empathy;
+  - collects details;
+  - escalates to human.
+- `PaymentSubagent`
+  - creates payment link only through approved action;
+  - handles failed payment fallback.
+- `HumanHandoffSubagent`
+  - prepares summary;
+  - chooses queue/team;
+  - creates SLA.
+- `VoiceTransferSubagent`
+  - cold/warm transfer;
+  - operator briefing;
+  - unavailable fallback.
+
+### Subagent routing logic
+
+```text
+incoming_turn
+  -> classify intent + risk + channel + customer state
+  -> select subagent
+  -> retrieve relevant context
+  -> decide: answer / ask / action_draft / handoff / transfer
+  -> validate decision against policy
+  -> execute or respond
+  -> store trace and outcome
+```
+
+### Subagent acceptance criteria
+
+- each subagent has explicit allowed actions;
+- each subagent has forbidden claims;
+- each subagent has eval cases;
+- subagent transfer is visible in trace;
+- user never sees internal subagent names unless intentionally surfaced;
+- operator can see which subagent failed or escalated.
+
+## 12.4 Missing logic: conversation state machines
+
+The current project has conversation statuses, but production needs precise state machines.
+
+### Universal conversation state
+
+```text
+created
+  -> active_ai
+  -> waiting_customer
+  -> needs_human
+  -> active_human
+  -> pending_external_action
+  -> pending_customer_confirmation
+  -> resolved
+  -> reopened
+  -> archived
+  -> spam
+  -> failed
+```
+
+Rules:
+
+- `resolved` requires resolution actor: `ai`, `operator`, `system`, `external_action`.
+- `needs_human` requires `handoff_reason` and `queue_id`.
+- `pending_external_action` requires `action_run_id` and timeout.
+- `pending_customer_confirmation` requires exact confirmation prompt.
+- `failed` requires recoverable/non-recoverable reason.
+
+### AI turn state
+
+```text
+received
+  -> normalized
+  -> classified
+  -> context_retrieved
+  -> decision_planned
+  -> policy_checked
+  -> action_required? -> action_drafted -> confirmation_required -> executed
+  -> response_generated
+  -> response_validated
+  -> delivered
+  -> observed
+```
+
+Failure branches:
+
+- retrieval_failed -> safe no-answer/handoff;
+- model_timeout -> fallback model or handoff;
+- policy_violation -> block response;
+- channel_send_failed -> retry/dead-letter/notify operator;
+- action_failed -> operator handoff with action error.
+
+### Handoff state
+
+```text
+created
+  -> queued
+  -> assigned
+  -> opened_by_operator
+  -> replied
+  -> pending_customer
+  -> resolved
+  -> reopened
+  -> escalated_to_supervisor
+```
+
+Required fields:
+
+- reason;
+- queue;
+- priority;
+- SLA deadline;
+- summary;
+- suggested reply;
+- customer profile;
+- channel callback capability;
+- previous failures.
+
+### Voice call state
+
+```text
+incoming_call
+  -> consent_prompt
+  -> listening
+  -> transcribing
+  -> thinking
+  -> speaking
+  -> interrupted
+  -> action_pending
+  -> transferring
+  -> human_joined
+  -> completed
+  -> post_call_analysis
+  -> archived
+```
+
+Failure branches:
+
+- no_audio;
+- STT_failed;
+- TTS_failed;
+- LLM_timeout;
+- transfer_failed;
+- customer_hung_up;
+- provider_dropped;
+- recording_failed.
+
+### Order state
+
+```text
+none
+  -> collecting_items
+  -> collecting_contact
+  -> collecting_address
+  -> calculating_total
+  -> awaiting_confirmation
+  -> submitted_to_pos
+  -> accepted
+  -> rejected
+  -> modified
+  -> cancelled
+  -> refunded
+  -> escalated
+```
+
+Hard rule: no order leaves CallForce until customer explicitly confirms final order summary.
+
+## 12.5 Missing logic: routing engine
+
+A world-class product needs routing, not just “operator reply form”.
+
+### Routing inputs
+
+- channel;
+- language;
+- sentiment;
+- urgency;
+- topic;
+- VIP/customer value;
+- open order status;
+- business hours;
+- operator presence;
+- team skills;
+- SLA tier;
+- integration failure reason;
+- compliance risk.
+
+### Routing outputs
+
+- AI self-serve;
+- assigned operator;
+- queue;
+- supervisor escalation;
+- callback task;
+- voice transfer number;
+- after-hours autoresponse;
+- blocked/spam.
+
+### Routing examples
+
+- refund complaint -> supervisor queue;
+- allergy question -> human or strict knowledge source only;
+- delivery late -> order status action, then human if unresolved;
+- corporate order -> sales/catering queue;
+- abusive message -> safe response + flag;
+- VIP phone call -> priority human transfer.
+
+## 12.6 Missing logic: same customer memory across channels
+
+Competitors emphasize “same brain every channel”. CallForce needs identity stitching.
+
+### Identity resolution
+
+Sources:
+
+- phone number;
+- Telegram user id;
+- WhatsApp user id;
+- VK user id;
+- web visitor cookie;
+- email;
+- CRM customer id;
+- order phone;
+- manual merge by operator.
+
+Confidence levels:
+
+- exact verified match;
+- probable match;
+- manual merge;
+- conflict.
+
+Rules:
+
+- never auto-merge uncertain identities with sensitive data;
+- operator can merge/split;
+- every merge is audited;
+- customer can request export/delete across identities.
+
+### Memory types
+
+- short-term conversation context;
+- customer preferences: favorite order, language, allergies, delivery address;
+- business-safe notes;
+- consent flags;
+- CRM history;
+- unresolved issues;
+- do-not-call/do-not-message flags.
+
+### Memory safety
+
+- allergies must be treated as safety-critical;
+- do not infer sensitive categories unnecessarily;
+- memory used in responses must be visible in trace;
+- customer can delete memory.
+
+## 12.7 Missing logic: workflow/playbook engine
+
+A competitor-level AI product needs playbooks/AOPs, not prompt-only behavior.
+
+### Playbook structure
+
+```text
+Playbook
+  objective
+  entry_conditions
+  required_inputs
+  steps
+  allowed_actions
+  confirmation_rules
+  escalation_rules
+  success_conditions
+  failure_conditions
+  eval_cases
+```
+
+### Restaurant playbooks
+
+- answer menu question;
+- recommend pizza;
+- create delivery order;
+- create pickup order;
+- change order;
+- cancel order;
+- check delivery status;
+- handle complaint;
+- handle allergy question;
+- handle corporate/catering request;
+- transfer to operator;
+- after-hours response.
+
+### Playbook controls
+
+- deterministic steps for regulated/risky flows;
+- flexible language for low-risk FAQ;
+- approval for action execution;
+- simulation before publish;
+- metrics per playbook.
+
+## 12.8 Missing logic: real-time operator copilot
+
+CallForce should not only automate customers; it should help human operators.
+
+### Operator copilot features
+
+- live transcript summary;
+- suggested reply;
+- relevant knowledge snippets;
+- customer/order context;
+- sentiment and urgency;
+- next best action;
+- grammar/tone rewrite;
+- auto-fill CRM/order fields;
+- post-resolution summary;
+- QA checklist.
+
+### Voice live-assist
+
+For transferred calls:
+
+- real-time transcript;
+- AI suggestions;
+- customer profile screen-pop;
+- order/action forms;
+- compliance reminders;
+- supervisor listen/whisper/barge later.
+
+## 12.9 Missing logic: quality management and coaching
+
+To beat contact-center platforms, CallForce needs QA for both AI and humans.
+
+### Auto-QA scoring
+
+Score every conversation/call for:
+
+- correct answer;
+- grounded source/action;
+- tone;
+- policy compliance;
+- escalation correctness;
+- resolution outcome;
+- customer sentiment;
+- operator response quality;
+- action safety;
+- missed upsell/order opportunity.
+
+### Coaching loop
+
+- low-score conversation -> QA review queue;
+- supervisor labels issue;
+- issue becomes prompt/source/playbook improvement;
+- eval case generated automatically;
+- future release must pass that regression.
+
+### Quality dashboards
+
+- AI quality by agent;
+- operator quality by team;
+- top policy violations;
+- hallucination attempts;
+- source gaps;
+- failed actions;
+- sentiment trends;
+- CSAT by channel.
+
+## 12.10 Missing logic: experimentation and safe rollout
+
+World-class platforms do not push prompt changes directly to all users.
+
+### Release lifecycle
+
+```text
+draft change
+  -> local simulation
+  -> eval suite
+  -> staging agent
+  -> internal test conversations/calls
+  -> canary 5%
+  -> monitor
+  -> 25%
+  -> 100%
+  -> post-release review
+```
+
+### A/B experiments
+
+- prompt variation;
+- voice variation;
+- handoff threshold;
+- answer length;
+- recommendation style;
+- upsell strategy;
+- playbook step order.
+
+### Kill switches
+
+- disable AI replies per tenant;
+- disable specific agent;
+- disable action execution;
+- disable channel outbound;
+- force all to human;
+- fallback model/provider;
+- pause outbound campaign.
+
+## 12.11 Missing logic: provider abstraction and failover
+
+Current stubs are useful, but production needs provider abstraction.
+
+### Provider abstraction must cover
+
+- LLM;
+- embeddings;
+- reranker;
+- STT;
+- TTS;
+- telephony;
+- SMS;
+- WhatsApp;
+- email;
+- payments;
+- POS/CRM;
+- object storage;
+- analytics/events.
+
+### Failover policy examples
+
+- primary LLM down -> fallback LLM with stricter no-answer;
+- embeddings down -> lexical-only retrieval with lower confidence;
+- TTS down -> transfer/handoff or SMS follow-up;
+- POS down -> collect order draft and handoff;
+- Telegram send failed -> retry then operator alert;
+- recording storage failed -> continue call but flag compliance issue.
+
+## 12.12 Missing logic: outbound campaigns
+
+Voice AI competitors often support outbound campaigns. For restaurants, outbound should be careful, consent-based.
+
+### Use cases
+
+- missed-call callback;
+- reservation confirmation;
+- order status callback;
+- delivery issue callback;
+- reactivation campaign only with consent;
+- catering lead follow-up.
+
+### Required controls
+
+- consent/do-not-call;
+- quiet hours;
+- frequency caps;
+- campaign pacing;
+- disposition tracking;
+- retry policy;
+- human takeover;
+- script/playbook approval;
+- campaign analytics.
+
+## 12.13 Missing logic: multi-tenant enterprise governance
+
+### Organization hierarchy
+
+- platform owner;
+- tenant owner;
+- branch manager;
+- supervisor;
+- operator;
+- billing admin;
+- developer;
+- read-only auditor.
+
+### Branch/location support
+
+Restaurants often have multiple locations. Need:
+
+- branch-specific menu;
+- branch-specific hours;
+- branch-specific delivery zones;
+- branch-specific phone/channel;
+- branch-specific operators;
+- aggregate analytics;
+- customer chooses/infers branch.
+
+### Approval policies
+
+- who can publish agent;
+- who can connect channel;
+- who can enable voice;
+- who can enable payments;
+- who can export data;
+- who can listen to recordings;
+- who can change retention.
+
+## 12.14 Missing logic: data ingestion beyond files
+
+Knowledge is not only PDF/manual text.
+
+### Sources needed
+
+- website crawl;
+- menu from iiko/r_keeper;
+- Google Sheets;
+- Notion/Confluence;
+- CRM FAQs;
+- help center;
+- Telegram pinned messages;
+- call transcripts;
+- operator notes promoted to KB;
+- unresolved topics.
+
+### Source lifecycle
+
+```text
+connected
+  -> syncing
+  -> parsed
+  -> chunked
+  -> embedded
+  -> evaluated
+  -> active
+  -> stale
+  -> failed
+  -> archived
+```
+
+### Freshness rules
+
+- menu/prices must be fresh;
+- delivery zones must be fresh;
+- legal/policy docs versioned;
+- stale source lowers confidence;
+- source conflicts require admin resolution.
+
+## 12.15 Missing logic: business outcome engine
+
+To be better than competitors, CallForce must prove value.
+
+### Outcome tracking
+
+- conversation resolved by AI;
+- order created;
+- order influenced;
+- missed call recovered;
+- complaint prevented escalation;
+- operator time saved;
+- revenue assisted;
+- cost saved;
+- customer retained;
+- appointment/booking created.
+
+### Outcome pricing readiness
+
+If later using outcome-based pricing:
+
+- define billable outcome;
+- prove attribution;
+- exclude test conversations;
+- dispute workflow;
+- audit trail;
+- customer-visible usage report.
+
+## 12.16 Missing logic: mobile/operator app thinking
+
+Restaurants may use phones/tablets.
+
+Need responsive/operator mobile:
+
+- inbox usable on phone;
+- quick replies;
+- push notifications later;
+- accept/resolve handoff;
+- call customer;
+- view order/customer;
+- mark unavailable;
+- manager dashboard on tablet.
+
+## 12.17 Missing logic: marketplace/templates later
+
+Not first priority, but for “best in world” long-term:
+
+- restaurant templates;
+- clinic templates;
+- e-commerce templates;
+- service company templates;
+- language packs;
+- voice packs;
+- integration recipes;
+- eval packs;
+- playbook packs.
+
+Each template must include:
+
+- prompt;
+- playbooks;
+- knowledge schema;
+- actions;
+- handoff rules;
+- eval suite;
+- dashboard defaults;
+- onboarding checklist.
+
+## 12.18 What CallForce can do better than US competitors specifically
+
+### Russian/CIS moat
+
+- native Russian speech and slang;
+- Telegram/VK-first, not afterthought;
+- WhatsApp local providers;
+- iiko/r_keeper/1C/Bitrix24/AmoCRM;
+- 152-ФЗ workflows;
+- pricing in rubles;
+- local telephony providers;
+- restaurant/delivery preset;
+- setup by real operator/business owner, not developer only.
+
+### Product moat
+
+- restaurant order engine built-in;
+- operator inbox optimized for small businesses;
+- AI safety visible in UI;
+- no-hallucination as selling point;
+- launch in one day;
+- “missed calls saved” metric;
+- “orders assisted” metric;
+- Russian voice QA pack.
+
+### Technical moat
+
+- hybrid local/cloud model option later;
+- provider abstraction;
+- deterministic playbooks for risky actions;
+- eval-generated unresolved topics;
+- Git-like agent versioning;
+- same runtime for chat and voice.
+
+## 12.19 Revised P0/P1/P2 build plan
+
+### P0: Must exist before first serious pilot
+
+- operator inbox v1;
+- real Telegram round-trip;
+- production widget embed;
+- customer profile basic;
+- citations in transcript;
+- unresolved topics;
+- eval suite for restaurant/no-answer/prompt injection;
+- order draft without POS submit;
+- channel settings UI;
+- basic analytics: automation/handoff/source gaps;
+- CI checks;
+- staging deploy;
+- Sentry/logging;
+- backup/migration runbooks verified;
+- security pass: tenant isolation/RBAC/API keys/rate limits.
+
+### P1: Must exist before paid production restaurants
+
+- iiko/r_keeper sandbox order submit;
+- WhatsApp provider;
+- VK if target customers need it;
+- voice real inbound pilot;
+- recording/transcript;
+- transfer/callback;
+- billing/quota;
+- onboarding wizard;
+- SLA/assignment;
+- audit export;
+- data retention;
+- mobile inbox;
+- source performance analytics;
+- action logs;
+- customer export/delete.
+
+### P2: Must exist before “best in world” claim
+
+- low-latency streaming voice with barge-in;
+- warm transfer;
+- multi-agent/subagent studio;
+- playbook builder;
+- simulation lab;
+- canary releases;
+- A/B experiments;
+- auto-QA for 100% conversations;
+- workforce/supervisor dashboard;
+- outcome-based pricing analytics;
+- marketplace/templates;
+- SSO/SAML;
+- multi-region/data residency;
+- enterprise incident/compliance portal;
+- outbound campaigns with consent.
+
+## 12.20 Final truth after deeper analysis
+
+The previous plan was strong, but not yet “world-best blueprint” because it did not fully specify:
+
+- Agent OS / lifecycle;
+- subagents;
+- exact state machines;
+- routing engine;
+- same-customer memory;
+- playbook/AOP layer;
+- operator copilot;
+- QA/coaching loop;
+- experimentation/canary releases;
+- provider failover;
+- outbound campaigns;
+- branch/location hierarchy;
+- ingestion from live systems;
+- business outcome engine;
+- P0/P1/P2 readiness tiers.
+
+Now those pieces are included. The document is much closer to a complete blueprint for building CallForce into a world-class AI operator platform. The next step is no longer more planning by default; the next step should be execution, starting with **Operator Inbox v1**, because it unlocks real human fallback for every future channel and voice flow.
