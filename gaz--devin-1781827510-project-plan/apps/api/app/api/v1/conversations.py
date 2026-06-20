@@ -5,7 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.api.v1.dependencies import require_tenant_permission
 from app.orchestrator import AgentOrchestrator
 from app.rbac import Permission
-from app.schemas import ChatMessageRequest, ChatMessageResponse, Conversation, ConversationDetail
+from app.schemas import (
+    ChatMessageRequest,
+    ChatMessageResponse,
+    Conversation,
+    ConversationDetail,
+    OperatorReplyRequest,
+)
 from app.settings import Settings, get_settings
 from app.store_factory import AppStore, get_app_store
 
@@ -34,6 +40,20 @@ async def get_conversation(
     app_store: AppStore = Depends(get_app_store),
 ) -> ConversationDetail:
     detail = app_store.get_conversation_detail(UUID(tenant_id), conversation_id)
+    if not detail:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
+    conversation, messages, sources = detail
+    return ConversationDetail(conversation=conversation, messages=messages, sources=sources)
+
+
+@router.post("/conversations/{conversation_id}/operator-reply", response_model=ConversationDetail)
+async def operator_reply(
+    conversation_id: UUID,
+    payload: OperatorReplyRequest,
+    tenant_id: str = Depends(MANAGE_CHAT),
+    app_store: AppStore = Depends(get_app_store),
+) -> ConversationDetail:
+    detail = app_store.record_operator_reply(UUID(tenant_id), conversation_id, payload.message)
     if not detail:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
     conversation, messages, sources = detail

@@ -94,6 +94,7 @@ export type ConversationSummary = {
   channel: "Telegram" | "SIP" | "Widget";
   customer: string;
   status: "open" | "resolved" | "escalated" | "draft";
+  resolutionStatus?: string;
   summary: string;
   latency: string;
   updatedAt: string;
@@ -620,6 +621,7 @@ function mapConversation(conversation: CoreConversation): ConversationSummary {
     channel: formatChannel(conversation.channel),
     customer: "Клиент",
     status: conversation.status,
+    resolutionStatus: conversation.resolution_status,
     summary: conversation.summary || "Диалог без summary",
     latency: "—",
     updatedAt: formatDateTime(conversation.updated_at),
@@ -635,6 +637,7 @@ function mapConversationDetail(payload: CoreConversationDetail): ConversationDet
     ...conversation,
     customer: customerMessage ? "Клиент Core API" : conversation.customer,
     resolution: payload.conversation.resolution_status,
+    resolutionStatus: payload.conversation.resolution_status,
     handoffReason:
       payload.conversation.status === "escalated" ? payload.conversation.resolution_status : undefined,
     messages: payload.messages.map((message) => ({

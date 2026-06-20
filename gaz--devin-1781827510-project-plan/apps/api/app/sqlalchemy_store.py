@@ -845,6 +845,29 @@ class SqlAlchemyStore:
             [selected_source] if selected_source else [],
         )
 
+    def record_operator_reply(
+        self, tenant_id: UUID, conversation_id: UUID, message_text: str
+    ) -> tuple[Conversation, list[Message], list[KnowledgeSource]] | None:
+        with self._session_scope() as session:
+            conversation_model = session.get(ConversationModel, str(conversation_id))
+            if conversation_model is None or conversation_model.tenant_id != str(tenant_id):
+                return None
+
+            conversation_model.status = ConversationStatus.resolved.value
+            conversation_model.resolution_status = "resolved"
+            session.add(
+                MessageModel(
+                    id=str(uuid4()),
+                    tenant_id=str(tenant_id),
+                    conversation_id=str(conversation_id),
+                    role=MessageRole.operator.value,
+                    content=message_text.strip(),
+                    confidence=None,
+                    source_ids=[],
+                )
+            )
+        return self.get_conversation_detail(tenant_id, conversation_id)
+
     def get_conversation_detail(
         self,
         tenant_id: UUID,

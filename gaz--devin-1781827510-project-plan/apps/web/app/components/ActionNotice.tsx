@@ -80,6 +80,21 @@ const notices: Record<string, { tone: "Danger" | "Info"; text: string; title: st
     title: "Test chat form",
     text: "Выберите агента и введите сообщение.",
   },
+  "operator-reply-sent": {
+    tone: "Info",
+    title: "Operator reply sent",
+    text: "Ответ оператора сохранён, диалог закрыт как resolved.",
+  },
+  "operator-reply-error": {
+    tone: "Danger",
+    title: "Operator reply error",
+    text: "Core API не сохранил ответ оператора.",
+  },
+  "operator-reply-invalid": {
+    tone: "Danger",
+    title: "Operator reply form",
+    text: "Введите непустой ответ оператора.",
+  },
   "voice-preview-created": {
     tone: "Info",
     title: "Voice preview",

@@ -12,6 +12,7 @@ import {
   getCoreTenantId,
   type CoreAgent,
   type CoreChatMessageResponse,
+  type CoreConversationDetail,
   type CoreKnowledgeIngestionJob,
   type CoreKnowledgeSource,
   type CoreMfaRecoveryCodesResponse,
@@ -208,6 +209,26 @@ export async function createMockChatAction(formData: FormData) {
   }
 
   redirect(noticePath("/test-console", "chat-error"));
+}
+
+export async function operatorReplyAction(formData: FormData) {
+  const conversationId = textValue(formData, "conversation_id");
+  const message = textValue(formData, "message");
+
+  if (!conversationId || !message) {
+    redirect(noticePath(`/conversations/${conversationId || ""}`, "operator-reply-invalid"));
+  }
+
+  const result = await mutateCoreApi<CoreConversationDetail>(
+    `/api/v1/conversations/${conversationId}/operator-reply`,
+    { message },
+  );
+
+  if (result.state === "live") {
+    redirect(noticePath(`/conversations/${result.data.conversation.id}`, "operator-reply-sent"));
+  }
+
+  redirect(noticePath(`/conversations/${conversationId}`, "operator-reply-error"));
 }
 
 export async function createVoicePreviewAction(formData: FormData) {

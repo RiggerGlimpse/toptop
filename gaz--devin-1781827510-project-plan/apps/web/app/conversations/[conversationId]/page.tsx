@@ -5,6 +5,7 @@ import { DashboardShell } from "../../components/DashboardShell";
 import { ResultNotice } from "../../components/ResultNotice";
 import { StatusPill } from "../../components/StatusPill";
 import { getConversationDetail } from "../../../lib/mvp-data";
+import { operatorReplyAction } from "../../actions";
 import { ArrowLeft, User, Bot, Wrench } from "lucide-react";
 
 function toolTone(status: "success" | "skipped" | "failed") {
@@ -37,6 +38,9 @@ export default async function ConversationDetailPage({ params, searchParams }: C
   if (!conversation) {
     notFound();
   }
+
+  const needsOperator =
+    conversation.status !== "resolved" || conversation.resolutionStatus !== "resolved";
 
   return (
     <DashboardShell
@@ -112,6 +116,53 @@ export default async function ConversationDetailPage({ params, searchParams }: C
             </div>
           </article>
         </div>
+
+        {needsOperator ? (
+          <article className="rounded-xl border border-amber-500/20 bg-amber-950/30 p-6">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
+                  Operator handoff
+                </div>
+                <h2 className="text-lg font-semibold text-white">Нужен ответ оператора</h2>
+                <p className="mt-2 text-sm text-amber-100/70">
+                  AI передал диалог человеку. Сохраните ручной ответ, чтобы закрыть
+                  обращение как resolved.
+                </p>
+              </div>
+              <StatusPill tone="warn">{conversation.resolutionStatus ?? "needs_human"}</StatusPill>
+            </div>
+            <form action={operatorReplyAction} className="space-y-4">
+              <input type="hidden" name="conversation_id" value={conversation.id} />
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-amber-100">
+                  Ответ оператора
+                </span>
+                <textarea
+                  name="message"
+                  required
+                  minLength={1}
+                  maxLength={4000}
+                  rows={4}
+                  placeholder="Здравствуйте! Я оператор, уточню вопрос и помогу вручную."
+                  className="w-full rounded-xl border border-amber-500/20 bg-black/50 px-4 py-3 text-sm text-white placeholder:text-zinc-500 focus:border-amber-300 focus:outline-none"
+                />
+              </label>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-amber-100/60">
+                  Ответ добавится в transcript с ролью operator и переведёт диалог в
+                  resolved.
+                </p>
+                <button
+                  type="submit"
+                  className="rounded-lg bg-amber-300 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:ring-offset-2 focus:ring-offset-zinc-950"
+                >
+                  Отправить и закрыть
+                </button>
+              </div>
+            </form>
+          </article>
+        ) : null}
 
         {/* Transcript */}
         <section className="bg-zinc-900/50 border border-white/5 rounded-xl overflow-hidden">
