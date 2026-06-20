@@ -36,6 +36,7 @@ from app.rag import (
     build_qdrant_collection_contract,
     compose_grounded_answer,
     ingestion_idempotency_key,
+    is_prompt_injection,
     retrieve_sources,
     upsert_chunks_to_qdrant,
 )
@@ -665,12 +666,16 @@ class SqlAlchemyStore:
         payload: ChatMessageRequest,
         agent_response_text: str | None = None,
     ) -> ChatMessageResponse:
-        retrieval_results = retrieve_sources(
-            tenant_id=tenant_id,
-            query=payload.message,
-            collection_name=self.settings.qdrant_collection_name,
-            vector_size=self.settings.qdrant_vector_size,
-            limit=1,
+        retrieval_results = (
+            []
+            if is_prompt_injection(payload.message)
+            else retrieve_sources(
+                tenant_id=tenant_id,
+                query=payload.message,
+                collection_name=self.settings.qdrant_collection_name,
+                vector_size=self.settings.qdrant_vector_size,
+                limit=1,
+            )
         )
         selected_result = retrieval_results[0] if retrieval_results else None
 
@@ -687,7 +692,7 @@ class SqlAlchemyStore:
             channel=payload.channel,
             status=ConversationStatus.resolved if selected_source else ConversationStatus.escalated,
             summary=payload.message[:160],
-            resolution_status="resolved" if selected_source else "needs_operator",
+            resolution_status="resolved" if selected_source else "needs_human",
         )
         customer_message = Message(
             tenant_id=tenant_id,
@@ -754,12 +759,16 @@ class SqlAlchemyStore:
         if agent is None:
             return None
         payload = ChatMessageRequest(agent_id=agent_id, channel=channel, message=customer_text)
-        retrieval_results = retrieve_sources(
-            tenant_id=tenant_id,
-            query=payload.message,
-            collection_name=self.settings.qdrant_collection_name,
-            vector_size=self.settings.qdrant_vector_size,
-            limit=1,
+        retrieval_results = (
+            []
+            if is_prompt_injection(payload.message)
+            else retrieve_sources(
+                tenant_id=tenant_id,
+                query=payload.message,
+                collection_name=self.settings.qdrant_collection_name,
+                vector_size=self.settings.qdrant_vector_size,
+                limit=1,
+            )
         )
         selected_result = retrieval_results[0] if retrieval_results else None
 
@@ -835,6 +844,29 @@ class SqlAlchemyStore:
             agent_message,
             [selected_source] if selected_source else [],
         )
+
+    def record_operator_reply(
+        self, tenant_id: UUID, conversation_id: UUID, message_text: str
+    ) -> tuple[Conversation, list[Message], list[KnowledgeSource]] | None:
+        with self._session_scope() as session:
+            conversation_model = session.get(ConversationModel, str(conversation_id))
+            if conversation_model is None or conversation_model.tenant_id != str(tenant_id):
+                return None
+
+            conversation_model.status = ConversationStatus.resolved.value
+            conversation_model.resolution_status = "resolved"
+            session.add(
+                MessageModel(
+                    id=str(uuid4()),
+                    tenant_id=str(tenant_id),
+                    conversation_id=str(conversation_id),
+                    role=MessageRole.operator.value,
+                    content=message_text.strip(),
+                    confidence=None,
+                    source_ids=[],
+                )
+            )
+        return self.get_conversation_detail(tenant_id, conversation_id)
 
     def get_conversation_detail(
         self,

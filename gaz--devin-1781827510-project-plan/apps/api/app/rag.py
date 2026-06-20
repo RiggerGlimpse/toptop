@@ -14,6 +14,70 @@ from app.settings import get_settings
 
 DEFAULT_QDRANT_VECTOR_SIZE = 1536
 WORD_PATTERN = re.compile(r"\w+")
+STOP_WORDS = {
+    "and",
+    "are",
+    "for",
+    "how",
+    "the",
+    "what",
+    "with",
+    "без",
+    "вам",
+    "вас",
+    "все",
+    "для",
+    "есть",
+    "или",
+    "как",
+    "какие",
+    "какой",
+    "меня",
+    "мне",
+    "можно",
+    "могу",
+    "надо",
+    "это",
+}
+PROMPT_INJECTION_PATTERN = re.compile(
+    "|".join(
+        [
+            r"ignore (?:all )?(?:previous|prior|above) instructions",
+            r"system prompt",
+            r"developer message",
+            r"раскро[йи].{0,40}(?:prompt|промпт|инструкц)",
+            r"системн.{0,40}(?:prompt|промпт|инструкц|сообщен)",
+            r"игнориру[йе].{0,40}(?:инструкц|правил|prompt|промпт)",
+            r"обойди.{0,40}(?:правил|ограничен|инструкц)",
+        ]
+    ),
+    re.IGNORECASE,
+)
+
+
+def is_prompt_injection(query: str) -> bool:
+    return bool(PROMPT_INJECTION_PATTERN.search(query))
+
+
+def _token_fingerprints(text: str) -> set[str]:
+    tokens: set[str] = set()
+    for match in WORD_PATTERN.findall(text.lower()):
+        if len(match) < 3 or match in STOP_WORDS:
+            continue
+        tokens.add(match)
+        if len(match) > 4:
+            tokens.add(match[:-1])
+        if len(match) > 5:
+            tokens.add(match[:5])
+    return tokens
+
+
+def retrieval_result_is_relevant(query: str, result: "RetrievalResult") -> bool:
+    query_tokens = _token_fingerprints(query)
+    if not query_tokens:
+        return False
+    result_tokens = _token_fingerprints(f"{result.title} {result.excerpt}")
+    return bool(query_tokens & result_tokens)
 
 
 @dataclass(frozen=True)
@@ -213,18 +277,23 @@ def retrieve_sources(
     ranked_results: list[RetrievalResult] = []
     for point in search_result.points:
         payload = point.payload or {}
-        ranked_results.append(
-            RetrievalResult(
-                source_id=UUID(payload.get("source_id", "00000000-0000-0000-0000-000000000000")),
-                title=payload.get("title", "Unknown Source"),
-                excerpt=payload.get("content", "")[:300],
-                score=point.score,
-            )
+        result = RetrievalResult(
+            source_id=UUID(payload.get("source_id", "00000000-0000-0000-0000-000000000000")),
+            title=payload.get("title", "Unknown Source"),
+            excerpt=payload.get("content", "")[:300],
+            score=point.score,
         )
+        if retrieval_result_is_relevant(query, result):
+            ranked_results.append(result)
     return ranked_results
 
 
 def compose_grounded_answer(query: str, result: RetrievalResult | None) -> str:
+    if is_prompt_injection(query):
+        return (
+            "Я не могу выполнять инструкции, которые просят обойти правила или "
+            "раскрыть системные настройки. Передаю вопрос оператору."
+        )
     if not result:
         return (
             "Не нашел надежного источника для ответа. Передаю вопрос оператору "

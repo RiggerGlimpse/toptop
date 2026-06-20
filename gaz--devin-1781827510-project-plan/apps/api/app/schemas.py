@@ -175,6 +175,10 @@ class Conversation(TimestampedModel):
     resolution_status: str = "unresolved"
 
 
+class OperatorReplyRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=4000)
+
+
 class RegisterRequest(BaseModel):
     company_name: str = Field(min_length=2, max_length=120)
     owner_email: EmailStr

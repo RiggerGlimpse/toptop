@@ -6,7 +6,7 @@ CallForce — российская платформа автоматизации
 
 > 🔥 **Лучше, чем Bland.ai** — мультиканальность, русский язык, интеграции с iiko/CRM/1C, визуальный билдер, SaaS кабинет, 152-ФЗ compliance.
 
-Подробный продуктовый и инженерный план: [`PROJECT_COMPLETION_PLAN.md`](PROJECT_COMPLETION_PLAN.md).
+Подробный продуктовый и инженерный master plan: [`docs/strategy/CALLFORCE_MASTER_PLAN.md`](docs/strategy/CALLFORCE_MASTER_PLAN.md).
 
 ## Архитектура
 
@@ -104,6 +104,7 @@ GET  /api/v1/knowledge/ingestion/jobs
 GET  /api/v1/knowledge/qdrant/contract
 GET  /api/v1/conversations     GET /api/v1/conversations/{id}
 POST /api/v1/chat/mock
+POST /api/v1/conversations/{id}/operator-reply
 GET  /api/v1/readiness
 ```
 

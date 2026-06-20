@@ -182,7 +182,7 @@ class LocalYooKassaAdapter:
 
         settings = get_settings()
         if settings.yookassa_shop_id and settings.yookassa_secret_key:
-            from yookassa import Configuration, Payment  # type: ignore[import-untyped]
+            from yookassa import Configuration, Payment  # type: ignore[import-not-found]
 
             Configuration.account_id = settings.yookassa_shop_id
             Configuration.secret_key = settings.yookassa_secret_key

@@ -103,7 +103,7 @@ async def trigger_outbound_call(
 
     # Real Twilio API integration
     try:
-        from twilio.rest import Client  # type: ignore[import-not-found]
+        from twilio.rest import Client  # type: ignore[import-untyped]
         client = Client(account_sid, auth_token)
         call = client.calls.create(
             to=to_number,

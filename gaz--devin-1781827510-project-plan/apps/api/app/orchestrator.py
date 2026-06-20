@@ -4,7 +4,11 @@ from typing import Any
 from uuid import UUID
 
 from app.llm_router import LLMRouter, RoutingStrategy
-from app.rag import retrieve_sources
+from app.rag import (
+    compose_grounded_answer,
+    is_prompt_injection,
+    retrieve_sources,
+)
 from app.store_factory import AppStore
 
 logger = logging.getLogger(__name__)
@@ -58,6 +62,11 @@ class AgentOrchestrator:
             query=customer_message,
             collection_name=settings.qdrant_collection_name,
         )
+        if is_prompt_injection(customer_message) or not retrieval_results:
+            return compose_grounded_answer(
+                customer_message,
+                retrieval_results[0] if retrieval_results else None,
+            )
 
         system_prompt = self._build_system_prompt(
             agent_prompt=agent.prompt,

@@ -68,5 +68,24 @@ def test_retrieve_sources_ranks_matching_source() -> None:
     assert "Delivery" in [result.title for result in results]
 
 
+def test_retrieve_sources_filters_unrelated_nearest_neighbor() -> None:
+    menu = KnowledgeSource(
+        id=uuid4(),
+        tenant_id=uuid4(),
+        title="Pizza menu",
+        source_type="manual",
+        content="Pepperoni pizza costs 599 rubles. Margherita pizza costs 499 rubles.",
+    )
+
+    collection_name = f"test_collection_{uuid4().hex}"
+    from app.rag import build_knowledge_chunks, upsert_chunks_to_qdrant
+
+    upsert_chunks_to_qdrant(build_knowledge_chunks(menu), collection_name)
+
+    results = retrieve_sources(menu.tenant_id, "bicycle repair warranty", collection_name)
+
+    assert results == []
+
+
 def test_compose_grounded_answer_has_no_answer_policy() -> None:
     assert "Передаю вопрос оператору" in compose_grounded_answer("unknown", None)

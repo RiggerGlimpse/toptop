@@ -17,6 +17,7 @@ from app.rag import (
     build_qdrant_collection_contract,
     compose_grounded_answer,
     ingestion_idempotency_key,
+    is_prompt_injection,
     retrieve_sources,
     upsert_chunks_to_qdrant,
 )
@@ -581,6 +582,40 @@ class InMemoryStore:
             return None
         return conversation
 
+    def record_operator_reply(
+        self, tenant_id: UUID, conversation_id: UUID, message_text: str
+    ) -> (
+        tuple[
+            Conversation,
+            list[Message],
+            list[KnowledgeSource],
+        ]
+        | None
+    ):
+        conversation = self.conversations.get(conversation_id)
+        if not conversation or conversation.tenant_id != tenant_id:
+            return None
+
+        now = datetime.now(UTC)
+        updated_conversation = conversation.model_copy(
+            update={
+                "status": ConversationStatus.resolved,
+                "resolution_status": "resolved",
+                "updated_at": now,
+            }
+        )
+        self.conversations[conversation_id] = updated_conversation
+        operator_message = Message(
+            tenant_id=tenant_id,
+            conversation_id=conversation_id,
+            role=MessageRole.operator,
+            content=message_text.strip(),
+            created_at=now,
+            updated_at=now,
+        )
+        self.messages[operator_message.id] = operator_message
+        return self.get_conversation_detail(tenant_id, conversation_id)
+
     def count_messages(self, tenant_id: UUID) -> int:
         return sum(1 for m in self.messages.values() if m.tenant_id == tenant_id)
 
@@ -619,12 +654,16 @@ class InMemoryStore:
         payload = ChatMessageRequest(agent_id=agent_id, channel=channel, message=customer_text)
         sources = self.list_knowledge_sources(tenant_id)
         settings = get_settings()
-        retrieval_results = retrieve_sources(
-            tenant_id=tenant_id,
-            query=customer_text,
-            collection_name=settings.qdrant_collection_name,
-            vector_size=settings.qdrant_vector_size,
-            limit=1,
+        retrieval_results = (
+            []
+            if is_prompt_injection(customer_text)
+            else retrieve_sources(
+                tenant_id=tenant_id,
+                query=customer_text,
+                collection_name=settings.qdrant_collection_name,
+                vector_size=settings.qdrant_vector_size,
+                limit=1,
+            )
         )
         selected_result = retrieval_results[0] if retrieval_results else None
         selected_source = (
