@@ -2642,3 +2642,1244 @@ The previous plan was strong, but not yet “world-best blueprint” because it 
 - P0/P1/P2 readiness tiers.
 
 Now those pieces are included. The document is much closer to a complete blueprint for building CallForce into a world-class AI operator platform. The next step is no longer more planning by default; the next step should be execution, starting with **Operator Inbox v1**, because it unlocks real human fallback for every future channel and voice flow.
+
+---
+
+# 13. Production implementation blueprint: DB, onboarding, numbers, channels, infra
+
+Этот раздел добавлен потому, что “лучший продукт в мире” — это не только AI-логика. Чтобы человек реально зашёл в кабинет, всё настроил, привязал номер/каналы и начал получать звонки/чаты, нужны production DB schema, миграции, provisioning, фоновые worker-процессы, credential vault, channel setup wizard, telephony onboarding, launch checklist and operations.
+
+## 13.1 Текущая DB reality в проекте
+
+Сейчас в коде уже есть SQLAlchemy-модели для базового MVP:
+
+- `tenants`
+- `users`
+- `memberships`
+- `auth_sessions`
+- `audit_logs`
+- `verification_tokens`
+- `password_reset_tokens`
+- `agents`
+- `knowledge_sources`
+- `knowledge_ingestion_jobs`
+- `knowledge_chunks`
+- `conversations`
+- `messages`
+- `api_keys`
+- `billing_ledger`
+- `webhook_subscriptions`
+
+Что это значит:
+
+- базовая multi-tenant/auth/agent/knowledge/conversation структура уже есть;
+- есть audit/API keys/billing ledger foundations;
+- knowledge chunks can store embeddings/Qdrant payload;
+- conversations/messages support current demo and handoff;
+- но это ещё не production SaaS schema.
+
+Критичный DB gap:
+
+- `apps/api/alembic/versions/b7917ceca4f4_initial_migration.py` сейчас фактически empty `pass` migration;
+- для production нужны реальные Alembic migrations, иначе чистая production DB не поднимет таблицы воспроизводимо;
+- нельзя считать проект production-ready, пока schema не создаётся migration-командами в staging/prod.
+
+## 13.2 Target production data architecture
+
+Production CallForce должен использовать несколько типов хранения, а не только Postgres.
+
+### Operational PostgreSQL
+
+Хранит truth state:
+
+- tenants/users/roles;
+- agents/versions/playbooks;
+- customers/identities;
+- conversations/messages/inbox;
+- actions/orders/payments;
+- channel connections;
+- phone numbers/SIP trunks;
+- knowledge metadata;
+- evals/releases;
+- billing/audit/compliance.
+
+Requirements:
+
+- real Alembic migrations;
+- tenant-scoped indexes;
+- foreign keys where safe;
+- JSONB only for flexible metadata, not core query fields;
+- soft-delete/archival for customer data where needed;
+- row-level tenant isolation tests;
+- PITR backups;
+- restore drill.
+
+### Redis
+
+Needed for:
+
+- rate limits;
+- short-lived idempotency locks;
+- webhook duplicate suppression;
+- job queues if using RQ/Celery/Arq;
+- online operator presence;
+- voice session ephemeral state;
+- typing indicators;
+- websocket fanout.
+
+### Qdrant/vector DB
+
+Needed for:
+
+- tenant knowledge vectors;
+- source/chunk metadata;
+- knowledge snapshot versioning;
+- hybrid retrieval payload filters;
+- future semantic conversation search.
+
+Rules:
+
+- each vector payload must include `tenant_id`, `source_id`, `chunk_id`, `source_version`, `visibility`, `updated_at`;
+- retrieval must filter by tenant and active source version;
+- stale/deleted source vectors must be removed or excluded.
+
+### Object storage
+
+Needed for:
+
+- uploaded knowledge files;
+- parsed originals;
+- call recordings;
+- exported audit archives;
+- screenshots/attachments;
+- generated reports.
+
+Requirements:
+
+- tenant-scoped paths;
+- signed URLs;
+- retention policies;
+- encryption at rest;
+- audit on download/playback;
+- malware/file type validation for uploads.
+
+### Analytics/event store
+
+Postgres may be enough initially, but world-class analytics eventually needs event storage:
+
+- conversation events;
+- AI turn events;
+- tool-call events;
+- channel delivery events;
+- voice latency events;
+- billing usage events;
+- QA labels;
+- operator activity.
+
+Options:
+
+- start with append-only `events` table in Postgres;
+- later move heavy analytics to ClickHouse/BigQuery/warehouse;
+- dashboards should read aggregates, not scan huge transcript tables.
+
+## 13.3 Production DB schema: tables that must be added
+
+### Tenant, team, branches
+
+```text
+tenants
+branches
+business_hours
+holiday_hours
+teams
+team_memberships
+operator_presence
+roles
+permissions
+```
+
+`branches` fields:
+
+- `id`
+- `tenant_id`
+- `name`
+- `address`
+- `timezone`
+- `phone_public`
+- `delivery_zones`
+- `pickup_enabled`
+- `delivery_enabled`
+- `pos_external_id`
+- `status`
+
+Why: restaurants are often multi-location. Voice/chat/order logic must know branch-specific menu, hours, delivery rules and operator team.
+
+### Customers and identity stitching
+
+```text
+customers
+customer_identities
+customer_addresses
+customer_preferences
+customer_consents
+customer_tags
+customer_merge_events
+customer_timeline_events
+```
+
+Must support:
+
+- phone -> customer;
+- Telegram -> customer;
+- WhatsApp -> customer;
+- VK -> customer;
+- web visitor -> customer;
+- CRM/POS external id -> customer;
+- manual merge/split;
+- GDPR/152-ФЗ export/delete.
+
+### Agent OS
+
+```text
+agent_versions
+prompt_versions
+model_config_versions
+subagents
+agent_skills
+playbooks
+playbook_versions
+playbook_steps
+guardrail_rules
+escalation_rules
+agent_release_channels
+agent_release_events
+```
+
+Must support:
+
+- draft/staging/production versions;
+- simulation before publish;
+- rollback to previous version;
+- trace every answer to exact version.
+
+### Knowledge
+
+Existing:
+
+- `knowledge_sources`
+- `knowledge_ingestion_jobs`
+- `knowledge_chunks`
+
+Needed:
+
+```text
+knowledge_source_versions
+knowledge_connectors
+knowledge_sync_runs
+knowledge_guidance_rules
+knowledge_conflicts
+unresolved_topics
+source_performance_daily
+chunk_feedback
+```
+
+Why:
+
+- menu/prices/delivery zones change;
+- source conflicts must be explicit;
+- AI must know which source to use for which topic;
+- unresolved questions should become actionable knowledge tasks.
+
+### Inbox and conversations
+
+Existing:
+
+- `conversations`
+- `messages`
+
+Needed:
+
+```text
+inbox_threads
+thread_participants
+assignments
+queues
+sla_policies
+sla_events
+internal_notes
+message_delivery_attempts
+conversation_summaries
+handoff_packages
+operator_drafts
+saved_replies
+```
+
+Why:
+
+- current conversation detail form is not enough;
+- real support needs queue, assignment, SLA, notes, delivery tracking and reopen/snooze.
+
+### Channels
+
+```text
+channel_connections
+channel_credentials
+channel_webhooks
+channel_events
+channel_delivery_logs
+widget_installations
+allowed_widget_domains
+telegram_bots
+whatsapp_business_accounts
+vk_communities
+email_inboxes
+sms_numbers
+```
+
+Credential rules:
+
+- store encrypted secret references, not plaintext;
+- never show token after save;
+- rotate/reconnect flow;
+- validate webhook signatures;
+- log last inbound/outbound event.
+
+### Voice and telephony
+
+```text
+telephony_providers
+sip_trunks
+phone_numbers
+phone_number_assignments
+voice_agents
+call_sessions
+call_legs
+call_recordings
+transcript_segments
+voice_latency_events
+call_transfers
+callback_requests
+outbound_campaigns
+outbound_campaign_recipients
+do_not_call_entries
+```
+
+Must support:
+
+- buy/import number;
+- BYO Twilio;
+- BYO SIP trunk;
+- local provider such as Zadarma/Mango/UIS-like SIP;
+- inbound/outbound routing;
+- warm/cold transfer;
+- recordings/transcripts;
+- callback fallback;
+- consent and retention.
+
+### Actions, orders, POS/CRM
+
+```text
+action_definitions
+action_runs
+action_approvals
+action_idempotency_keys
+integration_connections
+integration_credentials
+integration_sync_runs
+menu_catalogs
+menu_categories
+menu_items
+menu_modifiers
+menu_availability
+order_drafts
+orders
+order_items
+order_status_events
+payment_links
+refund_requests
+crm_links
+```
+
+Hard rules:
+
+- no order submit without explicit confirmation;
+- no payment without provider callback verification;
+- POS unavailable -> collect draft + handoff;
+- duplicate webhook/action must be idempotent.
+
+### QA, evals, monitoring
+
+```text
+eval_suites
+eval_cases
+eval_runs
+eval_results
+simulation_runs
+ai_turn_traces
+llm_calls
+tool_calls
+retrieval_traces
+qa_reviews
+qa_scorecards
+monitor_definitions
+monitor_alerts
+incident_events
+```
+
+Why:
+
+- top competitors expose traces, simulations, QA and proactive gap insights;
+- CallForce must catch failures before customers do.
+
+### Billing and commercial readiness
+
+Existing:
+
+- `billing_ledger`
+
+Needed:
+
+```text
+plans
+subscriptions
+usage_events
+usage_aggregates
+invoices
+payment_methods
+billing_entitlements
+quota_events
+trial_events
+outcome_events
+billing_disputes
+```
+
+Must track:
+
+- messages;
+- calls/minutes;
+- AI resolutions;
+- operator seats;
+- channels;
+- integrations;
+- storage/recordings;
+- outcome-based metrics later.
+
+## 13.4 Migration and DB operations plan
+
+### Migration requirements
+
+- Replace empty initial migration with real schema migration.
+- Add migrations in small batches:
+  1. current MVP schema baseline;
+  2. customers/identities;
+  3. inbox/queues/SLA;
+  4. channel connections;
+  5. telephony/calls;
+  6. actions/orders/integrations;
+  7. evals/monitoring;
+  8. billing/subscriptions.
+- Every migration must have downgrade or explicit irreversible note.
+- CI must run migration upgrade against empty DB.
+- CI must run app tests against migrated DB, not only in-memory store.
+
+### DB indexes that matter
+
+- `tenant_id, created_at` on almost every tenant table;
+- `tenant_id, status` for inbox/actions/orders;
+- `tenant_id, channel, external_message_id` for webhook idempotency;
+- `tenant_id, phone_e164` for customers/phone;
+- `tenant_id, provider_call_id` for calls;
+- `tenant_id, idempotency_key` for action runs;
+- `tenant_id, source_id, source_version` for chunks;
+- `conversation_id, created_at` for messages;
+- `thread_id, created_at` for timeline.
+
+### Backup/restore
+
+- daily automatic backups minimum;
+- PITR for production Postgres;
+- monthly restore test;
+- object storage lifecycle retention;
+- Qdrant backup or rebuild-from-source plan;
+- runbook: restore tenant, restore full system, restore deleted source.
+
+## 13.5 Full onboarding: user enters and launches real product
+
+The onboarding must be an activation wizard. Goal: owner can launch first working AI operator without developer help.
+
+### Step 0: Create account and tenant
+
+User does:
+
+- register;
+- verify email;
+- create company;
+- choose business type: restaurant/delivery first;
+- choose language/timezone/currency.
+
+System creates:
+
+- tenant;
+- owner user;
+- default roles;
+- default branch;
+- demo agent draft;
+- onboarding checklist;
+- trial subscription.
+
+### Step 1: Business profile
+
+User fills:
+
+- restaurant name;
+- public phone;
+- address;
+- working hours;
+- delivery/pickup enabled;
+- delivery zones;
+- average delivery time;
+- payment methods;
+- operator hours;
+- handoff phone/chat.
+
+System validates:
+
+- timezone;
+- E.164 phone;
+- required fields;
+- branch completeness.
+
+### Step 2: Import menu and knowledge
+
+Options:
+
+1. Upload file: PDF/DOCX/CSV/XLSX/TXT.
+2. Paste text/FAQ.
+3. Crawl website/menu URL.
+4. Connect Google Sheets.
+5. Connect iiko/r_keeper later.
+6. Use Demo Pizza template.
+
+System does:
+
+- parse;
+- extract menu items/prices/modifiers/allergens;
+- detect conflicts/missing prices;
+- chunk/embed;
+- run coverage check;
+- ask owner to confirm critical facts.
+
+Activation gate:
+
+- cannot launch restaurant agent if menu has no prices and policy says prices are required;
+- cannot answer allergy questions unless allergen info exists or handoff rule is enabled;
+- stale/failed source blocks launch or forces safe handoff mode.
+
+### Step 3: Configure AI operator
+
+User chooses:
+
+- agent name;
+- tone;
+- language;
+- channels;
+- allowed tasks;
+- forbidden topics;
+- handoff rules;
+- whether AI can draft orders;
+- whether AI can submit orders;
+- voice persona later.
+
+System creates:
+
+- agent draft;
+- prompt version;
+- restaurant playbooks;
+- subagent config;
+- eval suite;
+- test questions.
+
+### Step 4: Configure human fallback
+
+User sets:
+
+- operator users;
+- teams/queues;
+- business hours;
+- SLA;
+- handoff destinations;
+- after-hours message;
+- transfer phone numbers.
+
+System validates:
+
+- at least one fallback exists before real voice launch;
+- if no operator online, callback/off-hours flow exists;
+- escalation reasons mapped to queue/team.
+
+### Step 5: Connect web widget
+
+User does:
+
+- adds allowed domain;
+- copies embed script;
+- customizes color/logo/greeting;
+- sends test message.
+
+System does:
+
+- creates `widget_installation`;
+- validates domain allowlist;
+- shows installation status;
+- records first inbound/outbound test;
+- warns if CORS/domain invalid.
+
+Non-MVP requirement:
+
+- widget must support visitor identity, transcript persistence, handoff, operator reply, offline form, rate limit, spam protection, mobile layout.
+
+### Step 6: Connect Telegram
+
+User does:
+
+- creates bot through BotFather;
+- pastes bot token into CallForce;
+- CallForce calls Telegram `setWebhook`;
+- user sends test message to bot.
+
+System stores:
+
+- encrypted token reference;
+- bot username;
+- webhook secret;
+- last webhook status;
+- last update id.
+
+System validates:
+
+- HTTPS webhook reachable;
+- token valid;
+- duplicate updates ignored;
+- outbound `sendMessage` works;
+- operator replies route back to Telegram.
+
+### Step 7: Connect WhatsApp
+
+User flow depends on provider.
+
+Option A: Meta WhatsApp Cloud API:
+
+- connect Meta business;
+- add/verify business phone number;
+- register phone number;
+- configure webhook;
+- create/approve templates for outbound beyond 24h window;
+- send test inbound and outbound.
+
+Option B: local WhatsApp BSP/provider:
+
+- OAuth/API key;
+- select phone;
+- webhook URL;
+- template sync;
+- delivery receipts.
+
+System must track:
+
+- WABA id;
+- phone number id;
+- display phone;
+- template status;
+- webhook verify token;
+- message status events;
+- 24-hour customer service window;
+- template fallback if window closed.
+
+### Step 8: Connect VK
+
+User does:
+
+- creates/uses community;
+- creates group access token;
+- copies confirmation string;
+- sets Callback API server URL;
+- enables incoming/outgoing message events;
+- sends test message.
+
+System validates:
+
+- confirmation callback returns correct string;
+- secret key matches;
+- inbound `message_new` works;
+- outbound community message works;
+- duplicate events ignored.
+
+### Step 9: Connect phone number / voice
+
+User should see three paths.
+
+#### Path A: Buy a new number inside CallForce
+
+Best UX:
+
+- user chooses country/city;
+- selects number;
+- pays/activates;
+- assigns to agent/branch;
+- tests inbound call.
+
+Requires CallForce to integrate telephony provider inventory/billing.
+
+#### Path B: Bring existing Twilio/Telnyx/Plivo-like number
+
+Flow:
+
+- user enters provider credentials or OAuth;
+- imports phone number;
+- CallForce configures webhook/SIP routing;
+- user runs test call.
+
+Competitor pattern:
+
+- Vapi imports Twilio number after user provides Account SID/Auth Token;
+- Bland supports BYOT encrypted key and imported inbound numbers;
+- Retell imports phone numbers with E.164 number and SIP termination URI.
+
+#### Path C: Bring your own SIP trunk / local provider
+
+Flow:
+
+- user enters SIP host;
+- username/password or IP auth;
+- DID/phone number in E.164;
+- region;
+- transport UDP/TCP/TLS;
+- media/RTP port requirements;
+- inbound origination URI;
+- outbound termination URI;
+- test inbound;
+- test outbound;
+- test transfer.
+
+Must support local/CIS reality:
+
+- Zadarma-like SIP credentials;
+- Mango/UIS/CoMagic-like SIP or webhook providers if APIs support it;
+- existing PBX forwarding;
+- call transfer to restaurant manager.
+
+Voice activation gate:
+
+- number verified;
+- provider health ok;
+- inbound call test passed;
+- outbound test passed if outbound enabled;
+- recording consent configured;
+- transfer/callback fallback configured;
+- latency smoke test passed;
+- operator fallback exists.
+
+### Step 10: Run launch simulation
+
+System runs:
+
+- 20 restaurant FAQ evals;
+- 10 unknown/no-answer evals;
+- prompt injection tests;
+- order draft simulation;
+- handoff simulation;
+- channel send/receive tests;
+- voice test call if number enabled.
+
+Launch readiness result:
+
+```text
+Ready
+Needs fixes
+Blocked
+```
+
+User sees exact reasons, not generic failure.
+
+### Step 11: Go live
+
+User clicks launch.
+
+System:
+
+- publishes agent version;
+- enables selected channels;
+- starts monitoring;
+- creates first launch report;
+- schedules 24h review;
+- enables emergency kill switch.
+
+## 13.6 What must happen when a real customer writes/calls
+
+### Real chat path
+
+```text
+Customer message
+  -> channel webhook signature validation
+  -> duplicate/idempotency check
+  -> normalize channel payload
+  -> identify/create customer
+  -> attach to inbox thread
+  -> load agent/version/branch/customer/context
+  -> classify intent/risk/language
+  -> choose playbook/subagent
+  -> retrieve knowledge/action context
+  -> policy check
+  -> answer OR ask clarification OR draft action OR handoff
+  -> send via channel adapter
+  -> store delivery result
+  -> emit analytics/usage/trace events
+```
+
+### Real voice path
+
+```text
+Incoming call
+  -> telephony webhook/SIP event
+  -> identify phone number -> tenant/branch/agent
+  -> create call session and conversation
+  -> play consent/greeting
+  -> stream audio to STT
+  -> handle partial transcripts and barge-in
+  -> choose playbook/subagent
+  -> retrieve knowledge/action context
+  -> respond with streaming TTS
+  -> if human needed: warm/cold transfer or callback
+  -> save recording/transcript/latency/cost
+  -> post-call summary and QA
+```
+
+### Real order path
+
+```text
+Customer wants order
+  -> OrderBuilderSubagent
+  -> collect items/modifiers
+  -> check menu/availability
+  -> collect delivery/pickup/contact
+  -> calculate total/delivery fee
+  -> show exact confirmation summary
+  -> wait for explicit yes
+  -> submit to POS or create internal order
+  -> send order number/status
+  -> monitor status events
+  -> handoff on failure/complaint/change/refund
+```
+
+## 13.7 Channel setup screens that must exist
+
+### Channels overview
+
+Cards:
+
+- Widget: connected / needs install / error.
+- Telegram: connected / webhook failed / token expired.
+- WhatsApp: connected / templates pending / phone unverified.
+- VK: connected / confirmation needed / event error.
+- Voice: no number / test failed / live.
+- Email/SMS later.
+
+Each card shows:
+
+- last inbound;
+- last outbound;
+- error count;
+- setup progress;
+- test button;
+- disconnect/rotate credentials.
+
+### Phone numbers screen
+
+Must show:
+
+- phone number;
+- provider;
+- assigned branch;
+- assigned agent;
+- inbound enabled;
+- outbound enabled;
+- recording enabled;
+- transfer target;
+- last call;
+- health status;
+- test call button;
+- setup instructions.
+
+### Provider credential screen
+
+Must show:
+
+- provider name;
+- credential status;
+- scopes/capabilities;
+- last verified;
+- rotate/reconnect;
+- never show secret value.
+
+## 13.8 Background workers and scheduled jobs
+
+Needed worker types:
+
+- knowledge ingestion worker;
+- channel delivery retry worker;
+- webhook dead-letter reprocessor;
+- voice post-call analysis worker;
+- eval/simulation worker;
+- analytics aggregation worker;
+- billing usage aggregation worker;
+- integration sync worker;
+- cleanup/retention worker;
+- notification worker.
+
+Critical queues:
+
+```text
+critical-webhooks
+channel-outbound
+voice-events
+knowledge-ingestion
+actions
+analytics
+billing
+notifications
+low-priority-reports
+```
+
+Rules:
+
+- critical webhook ack must be fast;
+- heavy AI/eval/post-call work async;
+- retries exponential with max attempts;
+- dead-letter queue visible in Ops UI;
+- idempotency keys prevent duplicated orders/messages.
+
+## 13.9 Secrets and credentials
+
+Production cannot store raw provider tokens in JSON settings.
+
+Need:
+
+- encrypted credential store;
+- secret references in DB;
+- per-tenant credential ownership;
+- rotation;
+- last-used timestamp;
+- audit on use;
+- masked UI display;
+- provider capability validation;
+- revoke/disconnect flow.
+
+Credential types:
+
+- Telegram bot token;
+- WhatsApp access token;
+- VK group token;
+- Twilio SID/token;
+- SIP username/password;
+- iiko/r_keeper credentials;
+- YooKassa shop/secret;
+- SMTP/email provider;
+- Sentry/monitoring keys;
+- LLM provider keys if tenant brings own.
+
+## 13.10 Non-MVP production services
+
+### API service
+
+- public REST API;
+- auth/RBAC;
+- tenant isolation;
+- channel settings;
+- inbox;
+- actions;
+- billing;
+- admin.
+
+### Websocket/realtime service
+
+- inbox updates;
+- typing;
+- live call transcript;
+- operator presence;
+- channel status.
+
+### Voice media service
+
+- handles low-latency audio streams;
+- separate from normal API if needed;
+- optimized for WebSocket/SIP media;
+- records latency metrics.
+
+### Worker service
+
+- async jobs;
+- retries;
+- dead-letter.
+
+### Scheduler
+
+- sync jobs;
+- billing aggregation;
+- reports;
+- retention cleanup;
+- SLA breach checks.
+
+### Admin/Ops service or screens
+
+- provider health;
+- incidents;
+- tenant overrides;
+- queue backlogs;
+- failed webhooks/actions;
+- cost anomalies.
+
+## 13.11 Production readiness launch checklist
+
+The product is not MVP anymore only when all items below are true.
+
+### Owner can self-serve
+
+- register;
+- create restaurant;
+- upload menu/FAQ;
+- configure agent;
+- connect widget;
+- connect Telegram;
+- invite operator;
+- run tests;
+- launch.
+
+### Voice can be launched
+
+- add/import number;
+- configure provider/SIP;
+- verify inbound;
+- verify outbound if enabled;
+- configure recording consent;
+- configure transfer/callback;
+- pass latency smoke test;
+- see call log and transcript.
+
+### Channels are real
+
+- Telegram real inbound/outbound;
+- widget real inbound/outbound;
+- WhatsApp real inbound/outbound with templates/window logic;
+- VK real inbound/outbound if supported;
+- delivery failures visible;
+- retries/idempotency working.
+
+### Operators can work all day
+
+- inbox queue;
+- assignment;
+- SLA;
+- notes;
+- customer profile;
+- AI summary;
+- suggested reply;
+- reply to original channel;
+- close/reopen;
+- mobile usable.
+
+### AI is safe
+
+- no-answer/handoff;
+- prompt-injection block;
+- citations;
+- eval suite;
+- source performance;
+- unresolved topics;
+- action confirmation;
+- traces.
+
+### Business can see value
+
+- missed calls saved;
+- conversations resolved;
+- orders assisted;
+- revenue assisted;
+- operator time saved;
+- handoff reasons;
+- top missing knowledge;
+- costs.
+
+### Engineering can operate
+
+- real migrations;
+- CI;
+- staging;
+- production deploy;
+- backups;
+- monitoring;
+- alerting;
+- logs/traces;
+- incident runbooks;
+- rollback.
+
+## 13.12 Exact next implementation order to stop being MVP
+
+This is the recommended sequence from current repo state.
+
+### PR A: Real DB baseline and migrations
+
+- turn current SQLAlchemy schema into real Alembic migration;
+- add migration test in CI/local;
+- ensure app can boot against empty Postgres;
+- document DB setup.
+
+Why first: without reproducible DB, production does not exist.
+
+### PR B: Customer profile + channel identity
+
+- add customers/customer_identities;
+- attach conversations to customer;
+- resolve by phone/Telegram/web visitor;
+- UI customer panel.
+
+Why: omnichannel memory depends on this.
+
+### PR C: Operator Inbox v1
+
+- threads/queues/assignments/SLA/notes;
+- filters and counters;
+- reply to current internal channel;
+- prepare for external outbound.
+
+Why: every real failure must have human process.
+
+### PR D: Widget production channel
+
+- domain allowlist;
+- visitor identity;
+- real outbound operator/AI replies;
+- offline form;
+- spam/rate limits;
+- embed docs.
+
+Why: easiest real channel to fully control.
+
+### PR E: Telegram real setup wizard
+
+- encrypted bot token;
+- setWebhook;
+- inbound/outbound;
+- delivery logs;
+- duplicate update handling;
+- setup UI.
+
+Why: fastest local/CIS channel.
+
+### PR F: Knowledge production and eval lab
+
+- source versions;
+- guidance;
+- unresolved topics;
+- citations UI;
+- eval suites before publish.
+
+Why: trust and no hallucinations.
+
+### PR G: Order draft engine
+
+- menu catalog;
+- order draft;
+- confirmation;
+- internal order storage;
+- handoff on submit.
+
+Why: business value before deep POS integration.
+
+### PR H: POS/iiko integration
+
+- sync menu;
+- stop-list;
+- submit order;
+- status events;
+- idempotency.
+
+Why: converts AI chats into real orders.
+
+### PR I: Voice provider spike
+
+- choose provider path;
+- phone number model;
+- SIP/Twilio/Zadarma-like setup;
+- inbound test call;
+- transcript/call log.
+
+Why: voice must be proven with real telephony early.
+
+### PR J: Voice production pilot
+
+- streaming STT/TTS;
+- barge-in;
+- transfer;
+- recording;
+- latency dashboard;
+- 20-call QA.
+
+### PR K: WhatsApp/VK
+
+- WhatsApp Cloud/BSP setup;
+- templates/window logic;
+- VK callback;
+- channel health screens.
+
+### PR L: Billing/security/ops hardening
+
+- subscriptions/usage;
+- quota;
+- audit export;
+- retention;
+- monitoring;
+- incident runbooks;
+- staging/prod deploy.
+
+## 13.13 “User walked in and launched” acceptance test
+
+A product owner should be able to record this full test without engineer help:
+
+1. Open CallForce.
+2. Register account.
+3. Choose “restaurant/delivery”.
+4. Add restaurant name, hours, delivery rules.
+5. Upload menu PDF or paste menu.
+6. Confirm extracted menu facts.
+7. Create AI operator from template.
+8. Invite one operator.
+9. Connect web widget and send test message.
+10. Connect Telegram bot and send real Telegram message.
+11. AI answers known menu question with source.
+12. AI escalates unknown/refund/allergy question.
+13. Operator sees thread, summary, customer, source, reason.
+14. Operator replies; customer receives reply in Telegram/widget.
+15. Owner sees analytics updated.
+16. Owner adds/imports phone number.
+17. Owner runs test call.
+18. Call transcript/recording appears.
+19. AI transfers/callbacks when needed.
+20. Owner clicks “Go live”.
+
+If any step requires developer console/manual DB edit/manual secret placement outside UI, project is still not self-serve production.
+
+## 13.14 Final deeper conclusion
+
+To make CallForce not MVP, the next work must shift from “AI demo features” to **production activation system**:
+
+- reproducible database;
+- real onboarding;
+- real channel provisioning;
+- real phone number/SIP setup;
+- real customer identity;
+- real operator inbox;
+- real delivery/outbound logs;
+- real eval/release gate;
+- real monitoring and billing.
+
+The current code has the right foundation, but the biggest missing layer is now clear: **self-serve production operations**. The user must be able to connect knowledge, operators, channels and numbers from the UI, pass launch tests, and go live without engineering help.
