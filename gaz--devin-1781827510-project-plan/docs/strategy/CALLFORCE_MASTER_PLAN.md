@@ -5585,3 +5585,623 @@ To be better than top platforms, CallForce must not only have more features. It 
 - owner can pause, fix and improve the AI without engineering.
 
 This is the practical UX bar for “клиент зашёл, быстро всё настроил, и всё работает удобно”.
+
+---
+
+# 16. Deep competitor implementation teardown: how top platforms actually make setup work
+
+Этот раздел — проверка последнего сомнения: **будет ли всё работать как нужно, если построить по плану?** Ответ: будет только если CallForce повторит лучшие implementation-паттерны конкурентов, но упростит их для ресторана/доставки и локального рынка.
+
+Ниже не маркетинговые идеи, а практическая логика: какие шаги есть у конкурентов, что за этим стоит технически, где они сильны, где неудобны, и как CallForce должен сделать лучше.
+
+## 16.1 What competitors really optimize for
+
+Top platforms do not win only because their AI is smart. They win because setup is organized as a controlled production pipeline:
+
+```text
+Create agent
+  -> add knowledge
+  -> define behavior/procedures
+  -> connect systems/actions
+  -> configure handoff
+  -> attach channels/numbers
+  -> simulate/test
+  -> publish gradually
+  -> monitor outcomes
+  -> improve from gaps
+```
+
+CallForce must use the same pipeline, but make it restaurant-specific:
+
+```text
+Create restaurant
+  -> import menu/rules
+  -> create AI operator from template
+  -> configure safe order/handoff behavior
+  -> connect widget/Telegram first
+  -> test real customer scenarios
+  -> go live safely
+  -> add phone/SIP and POS after core setup works
+  -> improve from missed calls/questions/orders
+```
+
+## 16.2 Sierra pattern: Agent Studio + Agent OS
+
+Observed competitor pattern:
+
+- no-code Agent Studio;
+- journeys/workflows;
+- goals and guardrails;
+- composable skills;
+- knowledge management;
+- integrations/actions;
+- real-time traces;
+- simulations/regression tests;
+- knowledge gaps;
+- generated expert answers from human resolutions;
+- omnichannel deployment.
+
+What this means technically:
+
+- an agent is not just a prompt;
+- every live behavior must be versioned;
+- every answer/action must have a trace;
+- every release must pass simulations;
+- every failure should become a knowledge/workflow improvement item.
+
+CallForce requirement:
+
+```text
+agent_versions
+prompt_versions
+playbook_versions
+subagents
+guardrail_rules
+agent_traces
+simulation_runs
+eval_results
+knowledge_gaps
+expert_answer_drafts
+release_channels
+```
+
+Owner-facing UX:
+
+- owner should not edit “system prompt” first;
+- owner should see “AI operator behavior” settings;
+- advanced mode can expose prompts/playbooks later;
+- every Go Live should create a published version;
+- every change should be testable before publish;
+- rollback should be one click.
+
+CallForce improvement over Sierra for this niche:
+
+- prebuilt restaurant journeys instead of blank workflow builder;
+- menu/order/delivery/handoff states already understood;
+- Russian/CIS channel defaults;
+- owner sees business outcomes, not generic journey analytics.
+
+## 16.3 Decagon pattern: Agent Operating Procedures and staged rollout
+
+Observed competitor pattern:
+
+- convert SOPs into Agent Operating Procedures;
+- define triggers, steps, required data, decision points, success criteria and escalation;
+- configure integrations and routing;
+- test core workflows internally;
+- validate edge cases and multi-system disputes;
+- controlled rollout by channel or traffic percentage;
+- improve using analytics and QA.
+
+What this means technically:
+
+- knowledge articles alone are not enough;
+- procedures must be structured;
+- actions need validation gates;
+- rollout should be gradual;
+- QA should run continuously over real conversations.
+
+CallForce restaurant AOP examples:
+
+```text
+AOP: Delivery question
+Trigger: customer asks about delivery area/time/price
+Required data: branch, address/zone, current hours, delivery policy
+Steps:
+  1. Identify branch or ask clarification.
+  2. Check delivery enabled and hours.
+  3. Answer only from source.
+  4. If address outside known zones, handoff or ask operator.
+Success: customer knows whether delivery is available.
+Escalate: missing zone, complaint, angry customer, custom corporate order.
+```
+
+```text
+AOP: Order draft
+Trigger: customer wants to order
+Required data: items, modifiers, quantity, delivery/pickup, contact, address
+Steps:
+  1. Collect items one clarification at a time.
+  2. Validate menu availability.
+  3. Calculate draft total if source/POS supports it.
+  4. Show exact summary.
+  5. Ask explicit confirmation.
+  6. Submit only if POS/action enabled; otherwise handoff to operator.
+Success: confirmed order draft or submitted POS order.
+Escalate: unavailable item, price conflict, payment/refund, customer anger.
+```
+
+CallForce improvement over Decagon for this niche:
+
+- generate restaurant AOPs automatically from uploaded menu/policies;
+- owner reviews them as simple toggles/checklists;
+- every AOP has Russian examples;
+- AOPs map directly to UI readiness tests.
+
+## 16.4 Intercom Fin pattern: knowledge-first setup and channel deployment
+
+Observed competitor pattern:
+
+- central Knowledge/Sources area;
+- AI Agent tab shows sources available to Fin;
+- user adds native articles/snippets, external website sync, imports from Zendesk, internal content;
+- source access can be filtered by audience;
+- AI deployment is separated by channels;
+- content performance and knowledge gaps drive improvement.
+
+What this means technically:
+
+- sources need visibility/scope rules;
+- same source may be public, internal, operator-only, or AI-only;
+- channel deployment must be explicit;
+- knowledge source changes should not silently alter production without versioning/testing.
+
+CallForce requirement:
+
+```text
+knowledge_sources
+knowledge_source_versions
+source_visibility: public | ai_only | operator_only | internal
+source_audience_rules
+source_channel_rules
+source_conflicts
+source_performance_daily
+unresolved_topics
+knowledge_publish_events
+```
+
+Owner-facing UX:
+
+- “What AI can answer now” panel;
+- “What AI must escalate” panel;
+- source coverage by topic: menu, delivery, payment, promotions, allergens, order status;
+- warning if a source is stale/conflicting;
+- channel-specific source availability.
+
+CallForce improvement over Intercom for restaurants:
+
+- auto-extract structured menu instead of only help articles;
+- show missing prices/allergens/modifiers;
+- explain what questions are safe vs unsafe;
+- connect answers to order workflow, not just support deflection.
+
+## 16.5 Ada pattern: handoffs, actions, tokens, processes
+
+Observed competitor pattern:
+
+- AI Agent learns from Knowledge;
+- Actions let agent call external systems;
+- Tokens are configured before actions;
+- Playbooks/Processes structure automation;
+- Handoffs are separately configured by scenario/channel;
+- handoff can be real-time or asynchronous;
+- handoff content uses blocks and variables;
+- off-hours behavior matters.
+
+What this means technically:
+
+- handoff is not one boolean;
+- every escalation reason can route differently;
+- action credentials must be managed before automation;
+- off-hours and channel capabilities change behavior;
+- variables captured during conversation must pass into handoff/action payloads.
+
+CallForce requirement:
+
+```text
+handoff_rules
+handoff_destinations
+handoff_templates
+handoff_context_variables
+action_tokens
+action_definitions
+action_runs
+off_hours_policies
+queue_routing_rules
+```
+
+Owner-facing UX:
+
+- setup screen: “When should AI call a human?”;
+- prebuilt escalation reasons;
+- channel-specific handoff preview;
+- off-hours preview;
+- test handoff button;
+- no channel can go live without safe fallback policy.
+
+CallForce improvement over Ada for restaurants:
+
+- default handoff scenarios already include refund, allergy, angry customer, delivery outside zone, unavailable item, order status unavailable;
+- operator inbox is built around restaurant order context;
+- owner can see how many escalations were avoidable by adding knowledge.
+
+## 16.6 Vapi pattern: create assistant, attach phone number, test call, add tools
+
+Observed competitor pattern:
+
+- create voice assistant in dashboard or API;
+- define first message/prompt/model;
+- publish/test assistant;
+- create or import phone number;
+- assign assistant to number;
+- call the number for inbound testing;
+- make outbound call from dashboard/API;
+- add tools for real actions;
+- SIP setup requires region/API/SIP host consistency and credentials.
+
+What this means technically:
+
+- phone number is a first-class resource;
+- phone number assignment to assistant/agent must be explicit;
+- test call is required before confidence;
+- region mismatch can break SIP;
+- SIP credentials and phone number resources are separate;
+- outbound/inbound should be tested separately.
+
+CallForce requirement:
+
+```text
+voice_agents
+phone_numbers
+phone_number_assignments
+sip_trunks
+telephony_credentials
+call_sessions
+call_test_runs
+voice_tool_definitions
+voice_latency_events
+```
+
+Owner-facing UX:
+
+- “Connect calls” should show buy/import/SIP/forwarding paths;
+- every number must show assigned agent/branch;
+- test inbound call button;
+- test outbound call button if outbound enabled;
+- test transfer button;
+- latency and recording status visible;
+- region/provider mismatch explained in plain language.
+
+CallForce improvement over Vapi:
+
+- not developer-first;
+- restaurant setup automatically maps number -> branch -> menu -> operator queue;
+- local SIP providers and Russian telephony terms explained;
+- voice launch blocked until fallback/consent/recording policy exists.
+
+## 16.7 Bland pattern: BYOT, inbound numbers, pathways, live transfer, maintenance fallback
+
+Observed competitor pattern:
+
+- Bring Your Own Twilio;
+- user creates encrypted key from Twilio Account SID/Auth Token;
+- import inbound numbers from Twilio account;
+- use imported numbers for inbound/outbound calls;
+- inbound number has agent settings/prompt/pathway;
+- live transfer is configured with transfer numbers or transfer list;
+- maintenance fallback can forward calls during outages.
+
+What this means technically:
+
+- provider credentials must be encrypted and scoped;
+- imported numbers must keep ownership/provider metadata;
+- phone number settings can override agent behavior;
+- transfer list is separate from prompt;
+- maintenance fallback is a production reliability feature, not a nice-to-have.
+
+CallForce requirement:
+
+```text
+provider_credentials_encrypted
+imported_phone_numbers
+inbound_number_settings
+transfer_targets
+transfer_lists
+maintenance_fallback_numbers
+provider_outage_policies
+```
+
+Owner-facing UX:
+
+- “Use my existing number/provider” path;
+- masked encrypted credential after save;
+- imported number list;
+- per-number branch/agent assignment;
+- transfer target setup;
+- outage fallback number setup;
+- maintenance/outage mode visible.
+
+CallForce improvement over Bland:
+
+- restaurant-specific fallback: transfer to branch manager/operator queue, not just phone number;
+- show what customers hear during fallback;
+- include Telegram/operator inbox fallback when phone provider fails.
+
+## 16.8 Retell pattern: template -> test -> buy number -> assign -> call, plus knowledge and functions
+
+Observed competitor pattern:
+
+- create account;
+- create agent from template;
+- test in web dashboard;
+- add payment method before number purchase;
+- buy phone number;
+- assign agent to number;
+- test incoming call;
+- make outbound call;
+- attach knowledge base;
+- tune retrieval chunks/similarity/query rewrite instruction;
+- add function calling for transfer, end call, booking, SMS, external APIs.
+
+What this means technically:
+
+- template gets user to first working agent fast;
+- testing before phone purchase reduces friction;
+- billing gate is needed before paid number resources;
+- knowledge retrieval settings affect answer quality;
+- function calling must be explicit and traceable.
+
+CallForce requirement:
+
+```text
+agent_templates
+web_test_sessions
+billing_payment_methods
+phone_number_purchase_intents
+knowledge_retrieval_settings
+function_definitions
+function_call_traces
+```
+
+Owner-facing UX:
+
+- “Try AI operator before connecting channels”;
+- demo call/chat simulator;
+- payment method only required when buying number or leaving trial limits;
+- retrieval settings hidden behind “advanced knowledge tuning”;
+- owner sees “AI can call these actions” in plain language.
+
+CallForce improvement over Retell:
+
+- combine voice agent with restaurant data and operator inbox;
+- not just phone agent — full chat/voice/order operations;
+- support local channels before paid phone number.
+
+## 16.9 Twilio Flex / Amazon Connect / enterprise contact-center pattern
+
+Observed competitor pattern:
+
+- queues and routing profiles;
+- agent workspace;
+- unified customer profile;
+- real-time assist;
+- suggested responses;
+- post-contact summaries;
+- transfer summaries;
+- wrap-up notes/disposition codes;
+- sentiment/topic analytics;
+- real-time and historical dashboards;
+- access control by queues;
+- task management for follow-up work.
+
+What this means technically:
+
+- operator workspace must be first-class;
+- AI handoff must carry summary/context;
+- queues determine who sees/handles work;
+- after-conversation wrap-up is part of the workflow;
+- analytics must be by topic/outcome/queue/agent, not only message count.
+
+CallForce requirement:
+
+```text
+queues
+routing_profiles
+assignments
+operator_presence
+customer_profiles
+interaction_history
+transfer_summaries
+wrap_up_notes
+disposition_codes
+sentiment_events
+follow_up_tasks
+operator_analytics
+```
+
+Owner-facing UX:
+
+- small-business version of contact center, not huge enterprise admin;
+- default queue “Операторы”;
+- default routing by branch/channel/reason;
+- simple SLA timer;
+- AI summary always visible;
+- operator can close with disposition.
+
+CallForce improvement over enterprise platforms:
+
+- much easier setup;
+- restaurant defaults;
+- no consultants needed;
+- local messaging/telephony/POS in one app.
+
+## 16.10 Google Dialogflow CX pattern: stateful flows, fulfillment, live-agent handoff, analytics
+
+Observed competitor pattern:
+
+- pages/states guide conversation;
+- fulfillment can return static responses, call webhook, set parameters, or generate dynamic responses;
+- live-agent handoff is a signal that integration layer must execute;
+- analytics tracks no-match, escalation, abandoned conversations, webhook failures and conversation paths.
+
+What this means technically:
+
+- AI conversation is a state machine;
+- webhook/action failures are measurable outcomes;
+- handoff signal alone is not enough — product must implement actual handoff;
+- analytics must identify where users fail or escalate.
+
+CallForce requirement:
+
+```text
+conversation_states
+turn_states
+fulfillment_runs
+webhook_failures
+handoff_signals
+handoff_executions
+conversation_path_analytics
+no_match_topics
+```
+
+CallForce improvement:
+
+- use modern LLM/subagents but keep state machines for risky flows like orders, payments, refunds and handoff;
+- make analytics owner-friendly: “customers ask for X, AI cannot answer because Y”.
+
+## 16.11 WhatsApp Business Platform pattern: production is not just sending messages
+
+Observed competitor/platform pattern:
+
+- production webhook endpoint required;
+- webhooks deliver incoming messages, outgoing statuses, account status, capability changes and template quality/status updates;
+- permissions required for messaging and management;
+- business phone number must be registered/verified;
+- templates must be approved for outbound business-initiated messages;
+- 24-hour customer service window affects what can be sent.
+
+What this means technically:
+
+- WhatsApp channel cannot be modeled as generic chat only;
+- message status and template status are part of channel health;
+- outbound rules depend on time window and template approval;
+- setup must expose verification/approval states.
+
+CallForce requirement:
+
+```text
+whatsapp_business_accounts
+whatsapp_phone_numbers
+whatsapp_templates
+whatsapp_template_status_events
+whatsapp_quality_events
+whatsapp_customer_windows
+whatsapp_message_statuses
+```
+
+Owner-facing UX:
+
+- do not promise instant WhatsApp live if business verification is pending;
+- show template approval status;
+- explain 24-hour window;
+- block unsupported outbound attempts;
+- offer Telegram/widget quick launch while WhatsApp is pending.
+
+## 16.12 The “competitor synthesis” setup pipeline CallForce must implement
+
+The final setup pipeline should combine the strongest competitor patterns:
+
+```text
+1. Template-first start
+   Retell/Vapi speed + restaurant-specific CallForce template.
+
+2. Knowledge-first grounding
+   Intercom/Sierra knowledge source control + restaurant menu extraction.
+
+3. Procedure-first behavior
+   Decagon AOPs + restaurant order/delivery/complaint workflows.
+
+4. Handoff-first safety
+   Ada/Twilio routing + CallForce operator inbox.
+
+5. Channel-first launch
+   Widget/Telegram quick launch before complex WhatsApp/voice/POS.
+
+6. Number-first voice production
+   Vapi/Bland/Retell phone assignment + SIP/BYOT + fallback/consent.
+
+7. Simulation-first release
+   Sierra simulations + restaurant scenario test center.
+
+8. Trace-first debugging
+   Sierra/Vapi/Retell traces + owner-readable failure reasons.
+
+9. Analytics-first improvement
+   Intercom/Decagon/Dialogflow analytics + restaurant ROI.
+
+10. Operations-first reliability
+    Twilio/Amazon contact-center ops + simple SMB UX.
+```
+
+## 16.13 What must be easier than competitors
+
+CallForce should be easier specifically in these places:
+
+| Competitor pain | CallForce must do better |
+| --- | --- |
+| Voice platforms are developer/API-first | Owner gets guided phone setup and local SIP explanations |
+| Intercom/Ada are support-general | Restaurant menu/order/delivery defaults are built in |
+| Enterprise contact centers are heavy | Small restaurant gets simple queue/SLA/operator flow by default |
+| WhatsApp is complex | UI explains verification/templates/window and offers alternate quick channels |
+| POS integration is risky | Start with internal order draft, enable POS submit only after test order |
+| AI behavior is abstract | Owner sees toggles and examples, not raw prompt first |
+| Knowledge quality is invisible | Coverage panel shows what AI can/cannot answer |
+| Failures require logs/support | Every failed setup/test says exactly what broke and how to fix |
+| Rollout can be scary | Go Live only enables channels/scopes that passed tests |
+
+## 16.14 Confidence statement: when it will work as needed
+
+I can be confident in the plan if implementation follows these non-negotiable rules:
+
+1. No channel goes live without a passing send/receive test.
+2. No phone number goes live without inbound test, fallback, consent and recording policy.
+3. No AI scope goes live without evals for known, unknown and unsafe questions.
+4. No order/POS submit goes live without test order and idempotency.
+5. No action runs without trace, approval policy and rollback/failure path.
+6. No customer-facing answer relies on unversioned/stale/conflicting source silently.
+7. No setup step requires hidden manual DB/secrets/CLI work.
+8. No escalation is allowed unless there is a visible operator queue/task/callback path.
+9. No production release ships without migration/test/build/release gates.
+10. No owner dashboard hides critical failures.
+
+If all ten rules are true, the system will not merely “look complete”; it will operate like a real production platform.
+
+## 16.15 Final practical conclusion after competitor review
+
+The previous sections already covered the right components. This deeper competitor pass confirms the missing implementation formula:
+
+```text
+CallForce =
+  Retell/Vapi fast voice setup
+  + Bland BYO telephony/fallback thinking
+  + Sierra Agent OS/simulations/traces
+  + Decagon AOP/action discipline
+  + Intercom knowledge/source management
+  + Ada handoff/actions/tokens model
+  + Twilio/Amazon contact-center operations
+  + restaurant-specific UX, Russian language, local channels, local POS and local telephony.
+```
+
+That combination is how CallForce can be better than top platforms for the chosen niche. The product must not become a generic AI builder. It must become the easiest way for a restaurant owner to launch a safe AI operator for calls, chats, orders and handoff.
+
+The next step should be implementation, not more planning: start with production DB migrations and self-serve foundations, then build the setup pipeline exactly as described here.
