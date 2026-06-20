@@ -14,6 +14,24 @@ from app.settings import get_settings
 
 DEFAULT_QDRANT_VECTOR_SIZE = 1536
 WORD_PATTERN = re.compile(r"\w+")
+PROMPT_INJECTION_PATTERN = re.compile(
+    "|".join(
+        [
+            r"ignore (?:all )?(?:previous|prior|above) instructions",
+            r"system prompt",
+            r"developer message",
+            r"раскро[йи].{0,40}(?:prompt|промпт|инструкц)",
+            r"системн.{0,40}(?:prompt|промпт|инструкц|сообщен)",
+            r"игнориру[йе].{0,40}(?:инструкц|правил|prompt|промпт)",
+            r"обойди.{0,40}(?:правил|ограничен|инструкц)",
+        ]
+    ),
+    re.IGNORECASE,
+)
+
+
+def is_prompt_injection(query: str) -> bool:
+    return bool(PROMPT_INJECTION_PATTERN.search(query))
 
 
 @dataclass(frozen=True)
@@ -225,6 +243,11 @@ def retrieve_sources(
 
 
 def compose_grounded_answer(query: str, result: RetrievalResult | None) -> str:
+    if is_prompt_injection(query):
+        return (
+            "Я не могу выполнять инструкции, которые просят обойти правила или "
+            "раскрыть системные настройки. Передаю вопрос оператору."
+        )
     if not result:
         return (
             "Не нашел надежного источника для ответа. Передаю вопрос оператору "

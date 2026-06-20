@@ -17,6 +17,7 @@ from app.rag import (
     build_qdrant_collection_contract,
     compose_grounded_answer,
     ingestion_idempotency_key,
+    is_prompt_injection,
     retrieve_sources,
     upsert_chunks_to_qdrant,
 )
@@ -619,12 +620,16 @@ class InMemoryStore:
         payload = ChatMessageRequest(agent_id=agent_id, channel=channel, message=customer_text)
         sources = self.list_knowledge_sources(tenant_id)
         settings = get_settings()
-        retrieval_results = retrieve_sources(
-            tenant_id=tenant_id,
-            query=customer_text,
-            collection_name=settings.qdrant_collection_name,
-            vector_size=settings.qdrant_vector_size,
-            limit=1,
+        retrieval_results = (
+            []
+            if is_prompt_injection(customer_text)
+            else retrieve_sources(
+                tenant_id=tenant_id,
+                query=customer_text,
+                collection_name=settings.qdrant_collection_name,
+                vector_size=settings.qdrant_vector_size,
+                limit=1,
+            )
         )
         selected_result = retrieval_results[0] if retrieval_results else None
         selected_source = (
