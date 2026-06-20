@@ -32,6 +32,10 @@
 16. [`16-detailed-economics.md`](16-detailed-economics.md) — детальная экономика, P&L, breakeven, инвестиции.
 17. [`17-real-cost-calculation.md`](17-real-cost-calculation.md) — реальный расчет при 0 ₽ вложений, API vs local GPU, цена звонка/диалога.
 18. [`18-competitor-feature-benchmark-2026-06-20.md`](18-competitor-feature-benchmark-2026-06-20.md) — официальный benchmark Intercom/Fin, Zendesk, Ada, PolyAI, Retell, Bland/Five9 и честные parity gaps.
+19. [`19-us-leader-benchmark-and-moat.md`](19-us-leader-benchmark-and-moat.md) — benchmark Bland, Sierra, Decagon, Vapi, ElevenLabs и moat для CallForce.
+20. [`20-ideal-product-blueprint.md`](20-ideal-product-blueprint.md) — целевой продуктовый blueprint AI-оператора.
+21. [`21-build-test-release-system.md`](21-build-test-release-system.md) — AI build/test/release система, evals и quality gates.
+22. [`22-execution-roadmap-to-ideal.md`](22-execution-roadmap-to-ideal.md) — практический roadmap PR-ов до production и paid pilot.
 
 ## Связанные документы репозитория
 
