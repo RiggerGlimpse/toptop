@@ -3883,3 +3883,713 @@ To make CallForce not MVP, the next work must shift from “AI demo features” 
 - real monitoring and billing.
 
 The current code has the right foundation, but the biggest missing layer is now clear: **self-serve production operations**. The user must be able to connect knowledge, operators, channels and numbers from the UI, pass launch tests, and go live without engineering help.
+
+---
+
+# 14. Final completeness pass: ideal non-MVP product specification
+
+Этот раздел — финальная контрольная матрица. Его цель: убрать последние серые зоны и зафиксировать, что именно должно быть построено, чтобы CallForce был не MVP, а полноценный production SaaS/contact-center/voice-AI продукт, который владелец ресторана может сам настроить и запустить.
+
+Важно: “идеальность” в software означает не бесконечный список желаний, а проверяемое состояние. Поэтому ниже всё сформулировано как **acceptance checks**: если чек не проходит, продукт ещё не production-ready.
+
+## 14.1 Как понять, что документ теперь полный
+
+Документ считается полным blueprint, потому что покрывает все уровни системы:
+
+| Layer | Покрыто в плане | Почему это обязательно |
+| --- | --- | --- |
+| Market/category | конкуренты, positioning, локальный moat | чтобы не строить generic chatbot |
+| Product flows | chat, voice, orders, handoff, onboarding | чтобы было понятно, как работает бизнес-сценарий end-to-end |
+| Agent logic | Agent OS, subagents, playbooks, state machines | чтобы AI был управляемым, а не prompt-only |
+| Data model | current DB, missing tables, migrations | чтобы production state был воспроизводимым |
+| Channels | widget, Telegram, WhatsApp, VK, voice | чтобы клиент реально мог писать/звонить |
+| Telephony | numbers, SIP, BYOT, transfer, recordings | чтобы звонки были production, не preview |
+| Human ops | inbox, queues, SLA, assignment, copilot | чтобы AI-failure превращался в рабочий процесс |
+| Knowledge/RAG | sources, versions, guidance, evals | чтобы AI не выдумывал |
+| Actions | orders, payments, POS/CRM, idempotency | чтобы AI выполнял полезную работу безопасно |
+| Security | tenant isolation, secrets, audit, retention | чтобы можно было продавать бизнесу |
+| Infra | Postgres, Redis, Qdrant, storage, workers | чтобы система выдерживала реальную эксплуатацию |
+| QA | tests, evals, simulations, load, voice QA | чтобы релизы не ломали AI поведение |
+| Analytics | business/AI/voice/operator outcomes | чтобы клиент видел ROI |
+| Billing | plans, usage, quotas, invoices | чтобы это был SaaS |
+| Launch/Ops | staging/prod, monitoring, runbooks, incident | чтобы можно было поддерживать live customers |
+
+## 14.2 Final competitor checklist: что именно нужно превзойти
+
+### Voice AI leaders: Bland, Vapi, Retell, ElevenLabs
+
+CallForce должен иметь:
+
+- real inbound calls;
+- real outbound calls only with consent and controls;
+- import/buy phone number;
+- BYO Twilio/SIP trunk;
+- local SIP provider support;
+- streaming STT/TTS;
+- barge-in/interruption;
+- call transfer;
+- warm transfer with human briefing;
+- call recordings;
+- transcript segments;
+- post-call analysis;
+- latency dashboard;
+- provider failover;
+- call outcome/disposition;
+- voice eval suite.
+
+Better-than-competitor angle:
+
+- Russian/CIS telephony and language quality;
+- restaurant-specific order/complaint/delivery flows;
+- local channels and POS integrations;
+- owner-friendly setup, not developer-only API.
+
+### AI support leaders: Intercom Fin, Ada, Decagon, Sierra, Zendesk
+
+CallForce должен иметь:
+
+- knowledge source management;
+- content/source performance;
+- guided knowledge rules;
+- AI behavior guidance;
+- playbooks/procedures/AOPs;
+- simulations before publish;
+- traces of decisions/tool calls;
+- human handoff with summary;
+- agent assist/copilot;
+- analytics by deflection/resolution/content;
+- continuous improvement loop.
+
+Better-than-competitor angle:
+
+- no-hallucination policy visible in every transcript;
+- unresolved topics automatically become knowledge tasks;
+- restaurant launch wizard;
+- “orders assisted / missed calls saved” ROI dashboard.
+
+### Contact-center leaders: Genesys, NICE, Talkdesk, Twilio Flex, Amazon Connect
+
+CallForce должен иметь:
+
+- queues;
+- routing;
+- assignment;
+- operator presence;
+- SLA;
+- supervisor view;
+- real-time transcript;
+- suggested replies;
+- wrap-up notes;
+- quality scoring;
+- topic spotting;
+- workforce basics;
+- historical and real-time dashboards;
+- incident/health monitoring.
+
+Better-than-competitor angle:
+
+- simpler than enterprise contact center;
+- built for small/medium restaurant owners;
+- AI + operator + local channels in one setup;
+- launch without consultants.
+
+## 14.3 The “no hidden manual work” rule
+
+CallForce is not non-MVP if launch requires any of these hidden manual steps:
+
+- developer manually edits DB;
+- developer manually inserts secrets into `.env` for a tenant;
+- developer manually configures webhook outside documented UI/setup flow;
+- developer manually creates vector collection;
+- developer manually connects phone number;
+- developer manually runs SQL to fix onboarding;
+- developer manually changes prompt in code;
+- developer manually restarts worker for a normal tenant action;
+- developer manually reads logs to tell owner what failed;
+- customer cannot see why setup is blocked.
+
+Every setup action must be either:
+
+1. done inside CallForce UI;
+2. done by the user in an external provider console with exact guided steps;
+3. automatically verified by CallForce.
+
+## 14.4 Final product surfaces that must exist
+
+### Public website
+
+Must have:
+
+- clear restaurant/delivery positioning;
+- demo video;
+- pricing;
+- “book demo”;
+- “start free trial”;
+- security/compliance page;
+- integrations page;
+- docs link;
+- terms/privacy;
+- status page link.
+
+### SaaS app
+
+Must have:
+
+- onboarding wizard;
+- dashboard;
+- inbox;
+- agents;
+- knowledge;
+- channels;
+- phone/voice;
+- orders/actions;
+- analytics;
+- QA lab;
+- billing;
+- settings;
+- team/roles;
+- audit/security;
+- support/help.
+
+### Widget
+
+Must have:
+
+- embed script;
+- domain allowlist;
+- visitor identity;
+- AI replies;
+- operator replies;
+- offline form;
+- transcript history;
+- mobile design;
+- rate limit/spam controls;
+- custom branding;
+- handoff state visible to customer.
+
+### Operator workspace
+
+Must have:
+
+- queue list;
+- filters;
+- assignment;
+- transcript;
+- reply composer;
+- internal notes;
+- AI summary;
+- sources;
+- customer card;
+- order/action card;
+- SLA timer;
+- close/reopen;
+- suggested reply;
+- mobile/tablet usability.
+
+### Admin/Ops workspace
+
+Must have:
+
+- tenant health;
+- provider health;
+- queue backlogs;
+- failed webhooks;
+- failed channel sends;
+- failed actions;
+- model/provider errors;
+- cost anomalies;
+- incident log;
+- audit export;
+- support impersonation with audit, if ever added.
+
+## 14.5 Final backend service map
+
+```text
+api-web
+  auth, tenants, agents, knowledge, inbox, channels, voice config, billing
+
+realtime-gateway
+  inbox live updates, operator presence, live call transcript
+
+channel-webhooks
+  Telegram, WhatsApp, VK, widget, external webhooks
+
+voice-gateway
+  Twilio/SIP/media streams, STT/TTS loop, transfer events
+
+worker-critical
+  channel sends, action execution, webhook retries
+
+worker-ai
+  ingestion, evals, post-call analysis, summaries
+
+scheduler
+  SLA checks, billing aggregation, reports, retention cleanup
+
+admin-ops
+  provider status, incidents, internal support tools
+```
+
+Minimum production can start with fewer deployable processes if the codebase is small, but the responsibilities must be separated in architecture and queues so scaling is possible.
+
+## 14.6 Final external provider decisions to make before implementation
+
+Some decisions cannot be “documented into existence”; they must be chosen before building production adapters.
+
+### Telephony provider
+
+Decision needed:
+
+- Twilio-style global provider;
+- Vapi/Retell-like voice platform;
+- direct SIP with local CIS provider;
+- hybrid provider abstraction.
+
+Recommendation:
+
+- build abstraction first;
+- pilot with the fastest reliable provider;
+- keep BYO SIP/Twilio path in schema;
+- keep local provider path for Russian/CIS moat.
+
+### WhatsApp provider
+
+Decision needed:
+
+- Meta Cloud API directly;
+- Business Solution Provider;
+- local aggregator.
+
+Must support:
+
+- verified business phone;
+- templates;
+- template quality/status webhooks;
+- 24-hour customer service window;
+- delivery/read statuses;
+- webhook signatures;
+- opt-in/opt-out.
+
+### POS provider
+
+Decision needed:
+
+- iiko first;
+- r_keeper second;
+- internal order draft before POS submit.
+
+Recommendation:
+
+- build internal order draft/confirmation first;
+- then iiko sandbox;
+- then production POS submit/status/stop-list.
+
+### LLM/STT/TTS providers
+
+Decision needed:
+
+- default platform keys;
+- tenant BYO keys later;
+- fallback chain.
+
+Must support:
+
+- latency requirements;
+- Russian quality;
+- cost monitoring;
+- safe degradation;
+- no customer data training terms.
+
+## 14.7 Final DB acceptance checklist
+
+Production DB is ready only if:
+
+- real Alembic migrations exist;
+- empty database can be migrated from zero;
+- app boots using migrated schema;
+- tests run against migrated DB;
+- every tenant table has tenant isolation;
+- all webhook/action/order operations are idempotent;
+- customer identity is modeled;
+- channel connections are modeled;
+- phone numbers and SIP trunks are modeled;
+- call sessions/recordings/transcripts are modeled;
+- orders/actions/payments are modeled;
+- audit events cover sensitive actions;
+- retention/export/delete can be implemented from schema;
+- backups and restore test exist.
+
+## 14.8 Final onboarding acceptance checklist
+
+Self-serve onboarding is ready only if a restaurant owner can:
+
+- create account;
+- verify email;
+- create restaurant profile;
+- add branch/hours/delivery rules;
+- upload or paste menu;
+- confirm extracted facts;
+- create AI operator from restaurant template;
+- configure handoff;
+- invite operator;
+- install widget;
+- connect Telegram;
+- connect WhatsApp if approved/available;
+- connect VK if enabled;
+- add/import phone number;
+- run test chat;
+- run test call;
+- see readiness report;
+- fix blocked items;
+- click Go Live;
+- see first live conversation/call/order in dashboard.
+
+## 14.9 Final channel acceptance checklist
+
+### Widget
+
+- embed works on allowed domain;
+- blocked on unapproved domain;
+- mobile layout works;
+- visitor id persists;
+- AI answer delivered;
+- operator answer delivered;
+- offline mode works;
+- spam/rate limit works;
+- transcript stored;
+- delivery failures visible.
+
+### Telegram
+
+- token saved encrypted;
+- webhook set automatically;
+- webhook secret validated;
+- duplicate updates ignored;
+- inbound message creates/continues thread;
+- AI reply sends to Telegram;
+- operator reply sends to Telegram;
+- send failure retried and visible;
+- disconnect/rotate token works.
+
+### WhatsApp
+
+- business/phone status visible;
+- webhook configured;
+- templates synced;
+- template status/quality webhooks handled;
+- 24-hour service window respected;
+- inbound/outbound text works;
+- opt-out respected;
+- delivery/read statuses stored;
+- failed template or rejected message visible.
+
+### VK
+
+- confirmation callback works;
+- secret validation works;
+- inbound community message works;
+- outbound reply works;
+- duplicate events ignored;
+- setup errors visible.
+
+### Voice
+
+- number assigned to tenant/branch/agent;
+- inbound call reaches CallForce;
+- greeting/consent plays;
+- transcript starts;
+- AI replies with acceptable latency;
+- interruption works;
+- transfer/callback works;
+- recording stored;
+- post-call summary generated;
+- failed provider events visible.
+
+## 14.10 Final AI safety acceptance checklist
+
+AI can be enabled in production only if:
+
+- known menu question answered with source;
+- unknown question escalates;
+- prompt injection blocked;
+- source conflict escalates or asks admin;
+- stale source reduces confidence;
+- allergen uncertainty escalates;
+- refund/complaint escalates;
+- order submit requires explicit confirmation;
+- action result, not model imagination, drives order status;
+- every AI answer has trace;
+- eval suite runs before publish;
+- failed eval blocks production publish.
+
+## 14.11 Final voice acceptance checklist
+
+Voice is production-ready only if:
+
+- p95 first audible response is acceptable for pilot;
+- p95 STT/LLM/TTS latencies are measured separately;
+- user interruption stops/adjusts AI speech;
+- silence timeout works;
+- background noise does not crash flow;
+- customer can request operator;
+- transfer has fallback;
+- recording consent configured;
+- call recording stored securely;
+- transcript segments have timestamps;
+- post-call summary/disposition generated;
+- call cost recorded;
+- call failure reason is visible;
+- 20+ real pilot calls reviewed and scored.
+
+## 14.12 Final order/POS acceptance checklist
+
+Restaurant order flow is production-ready only if:
+
+- menu catalog exists;
+- modifiers/sizes supported;
+- stop-list/availability supported;
+- delivery/pickup supported;
+- customer contact collected;
+- address fields collected;
+- final summary shown;
+- explicit confirmation required;
+- order idempotency works;
+- POS submit success stored;
+- POS failure creates handoff;
+- order status lookup works;
+- cancel/change routes correctly;
+- payment link flow has webhook verification;
+- refund/complaint escalates.
+
+## 14.13 Final security/compliance acceptance checklist
+
+Production security is ready only if:
+
+- RBAC enforced;
+- MFA works and can be required;
+- API key scopes enforced;
+- tenant isolation tests pass;
+- webhook signatures validated;
+- rate limits exist;
+- secrets encrypted;
+- secrets rotated/disconnected;
+- recordings protected by signed URL/access checks;
+- audit logs cover sensitive actions;
+- customer export works;
+- customer delete/anonymize works;
+- retention policy works;
+- privacy/terms updated;
+- incident response runbook exists;
+- backup restore tested.
+
+## 14.14 Final observability acceptance checklist
+
+Operations is ready only if dashboards/alerts cover:
+
+- API errors;
+- webhook errors;
+- channel send failures;
+- queue backlog;
+- worker failures;
+- dead-letter jobs;
+- LLM/STT/TTS latency;
+- telephony provider errors;
+- call drops;
+- failed action runs;
+- POS/CRM errors;
+- billing webhook failures;
+- cost spikes;
+- eval failures;
+- SLA breaches;
+- storage/DB/Qdrant health.
+
+Every alert must have:
+
+- owner;
+- severity;
+- runbook;
+- customer impact definition;
+- mitigation;
+- postmortem path.
+
+## 14.15 Final UI/UX acceptance checklist
+
+Every production page must pass:
+
+- desktop layout;
+- tablet layout;
+- mobile layout;
+- loading state;
+- empty state;
+- error state;
+- permission denied state;
+- destructive action confirmation;
+- keyboard basics;
+- visible focus states;
+- form validation;
+- no fake data in live mode;
+- no console errors;
+- no broken critical network requests;
+- consistent spacing/type/buttons;
+- Russian copy quality;
+- user can understand next action.
+
+## 14.16 Final business readiness checklist
+
+CallForce can be sold only if:
+
+- pricing page exists;
+- plan limits exist;
+- trial exists;
+- billing works;
+- invoices/receipts work;
+- support contact exists;
+- onboarding docs exist;
+- demo script exists;
+- pilot contract/checklist exists;
+- success metrics defined;
+- customer feedback process exists;
+- churn/cancel flow exists;
+- status page or incident comms exists.
+
+## 14.17 Final release pipeline acceptance checklist
+
+A release is allowed only if:
+
+- branch has PR;
+- PR description explains impact;
+- lint passes;
+- typecheck passes;
+- backend tests pass;
+- frontend build passes;
+- migration test passes;
+- AI evals pass;
+- critical browser E2E passes;
+- channel smoke tests pass in staging;
+- voice smoke passes if voice changed;
+- security checks pass;
+- staging deploy succeeds;
+- rollback plan known;
+- release notes written.
+
+## 14.18 Final “day in the life” proof tests
+
+### Owner proof
+
+Owner can launch restaurant without engineer help.
+
+Acceptance:
+
+- record full setup from empty account to live widget/Telegram;
+- no DB/manual secret/manual CLI required;
+- readiness report explains every issue.
+
+### Customer proof
+
+Customer can ask:
+
+- “Какие пиццы есть?”
+- “Сколько доставка?”
+- “Хочу заказать пепперони без лука”
+- “Где мой заказ?”
+- “У меня аллергия, что можно?”
+- “Хочу вернуть деньги”
+
+Acceptance:
+
+- safe known answers;
+- order draft/confirmation;
+- status via action or handoff;
+- allergy/refund escalates;
+- transcript correct.
+
+### Operator proof
+
+Operator can:
+
+- see escalated thread;
+- understand reason;
+- read AI summary;
+- inspect sources;
+- reply to original channel;
+- close/reopen;
+- add note;
+- handle mobile if needed.
+
+### Manager proof
+
+Manager can see:
+
+- conversations;
+- calls;
+- handoffs;
+- missed calls saved;
+- orders assisted;
+- unresolved topics;
+- operator SLA;
+- AI failures;
+- cost.
+
+### Engineer/Ops proof
+
+Engineer can:
+
+- deploy staging;
+- run migrations;
+- inspect traces;
+- replay failed webhook;
+- see dead-letter job;
+- rotate secret;
+- rollback release;
+- restore backup.
+
+## 14.19 Final sequencing: what to build first, without more planning
+
+After this document, the correct next step is execution. The first PRs should be:
+
+1. Real Alembic migration baseline.
+2. Customer profile and channel identity.
+3. Operator Inbox v1.
+4. Widget production outbound.
+5. Telegram production setup wizard.
+6. Knowledge source versions, citations, unresolved topics and eval lab.
+7. Order draft engine.
+8. iiko/r_keeper integration.
+9. Phone number/SIP/voice provider spike.
+10. Voice production pilot.
+11. WhatsApp/VK production channels.
+12. Billing/security/ops hardening.
+
+Why this order is final:
+
+- DB/migrations must come before production features;
+- identity must come before omnichannel memory;
+- inbox must come before real channels/voice, otherwise escalations have nowhere to go;
+- widget/Telegram are fastest real launch channels;
+- evals must guard AI before more automation;
+- order draft creates business value before POS complexity;
+- voice is expensive/risky and should be piloted after fallback/inbox exists.
+
+## 14.20 Final answer: what “идеальный документ” means here
+
+This document is now intended to be the authoritative build blueprint. It includes:
+
+- current state;
+- ideal state;
+- competitor benchmark;
+- missing architecture;
+- DB schema direction;
+- infra direction;
+- onboarding direction;
+- channel/number setup;
+- AI logic;
+- voice logic;
+- operator workflow;
+- testing;
+- security;
+- analytics;
+- billing;
+- launch;
+- exact execution order.
+
+The project itself is not yet ideal until the checklist is implemented. But the plan now defines what “ideal” means in a testable way: if every acceptance checklist above passes, CallForce is no longer an MVP and can operate as a real production AI-operator SaaS.
