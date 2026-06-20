@@ -14,6 +14,31 @@ from app.settings import get_settings
 
 DEFAULT_QDRANT_VECTOR_SIZE = 1536
 WORD_PATTERN = re.compile(r"\w+")
+STOP_WORDS = {
+    "and",
+    "are",
+    "for",
+    "how",
+    "the",
+    "what",
+    "with",
+    "без",
+    "вам",
+    "вас",
+    "все",
+    "для",
+    "есть",
+    "или",
+    "как",
+    "какие",
+    "какой",
+    "меня",
+    "мне",
+    "можно",
+    "могу",
+    "надо",
+    "это",
+}
 PROMPT_INJECTION_PATTERN = re.compile(
     "|".join(
         [
@@ -32,6 +57,27 @@ PROMPT_INJECTION_PATTERN = re.compile(
 
 def is_prompt_injection(query: str) -> bool:
     return bool(PROMPT_INJECTION_PATTERN.search(query))
+
+
+def _token_fingerprints(text: str) -> set[str]:
+    tokens: set[str] = set()
+    for match in WORD_PATTERN.findall(text.lower()):
+        if len(match) < 3 or match in STOP_WORDS:
+            continue
+        tokens.add(match)
+        if len(match) > 4:
+            tokens.add(match[:-1])
+        if len(match) > 5:
+            tokens.add(match[:5])
+    return tokens
+
+
+def retrieval_result_is_relevant(query: str, result: "RetrievalResult") -> bool:
+    query_tokens = _token_fingerprints(query)
+    if not query_tokens:
+        return False
+    result_tokens = _token_fingerprints(f"{result.title} {result.excerpt}")
+    return bool(query_tokens & result_tokens)
 
 
 @dataclass(frozen=True)
@@ -231,14 +277,14 @@ def retrieve_sources(
     ranked_results: list[RetrievalResult] = []
     for point in search_result.points:
         payload = point.payload or {}
-        ranked_results.append(
-            RetrievalResult(
-                source_id=UUID(payload.get("source_id", "00000000-0000-0000-0000-000000000000")),
-                title=payload.get("title", "Unknown Source"),
-                excerpt=payload.get("content", "")[:300],
-                score=point.score,
-            )
+        result = RetrievalResult(
+            source_id=UUID(payload.get("source_id", "00000000-0000-0000-0000-000000000000")),
+            title=payload.get("title", "Unknown Source"),
+            excerpt=payload.get("content", "")[:300],
+            score=point.score,
         )
+        if retrieval_result_is_relevant(query, result):
+            ranked_results.append(result)
     return ranked_results
 
 

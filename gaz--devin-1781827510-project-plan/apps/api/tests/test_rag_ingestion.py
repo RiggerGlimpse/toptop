@@ -109,8 +109,16 @@ def test_mock_chat_no_answer_policy_escalates_without_sources(monkeypatch) -> No
 
 def test_chat_endpoint_no_answer_policy_does_not_call_llm(monkeypatch) -> None:
     client, headers, agent_id = _create_chat_test_client("rag-no-answer@example.com")
-    monkeypatch.setattr("app.orchestrator.retrieve_sources", lambda *args, **kwargs: [])
-    monkeypatch.setattr("app.store.retrieve_sources", lambda *args, **kwargs: [])
+    source_response = client.post(
+        "/api/v1/knowledge/sources",
+        headers=headers,
+        json={
+            "title": "Pizza menu",
+            "source_type": "manual",
+            "content": "Pepperoni pizza costs 599 rubles. Margherita pizza costs 499 rubles.",
+        },
+    )
+    assert source_response.status_code == 201
     monkeypatch.setattr(
         "app.llm_router.LLMRouter.generate_response",
         _fail_llm_generation,
